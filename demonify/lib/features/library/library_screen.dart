@@ -106,7 +106,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   leading: Container(
                     width: 56,
                     height: 56,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(DRadius.s), gradient: const LinearGradient(colors: [DColors.primary, Color(0xFF3B1478)])),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(DRadius.s), gradient: DColors.favoriteGradient),
                     child: const Icon(Icons.favorite_rounded, color: Colors.white),
                   ),
                   title: Text(s.favorites, style: const TextStyle(fontWeight: FontWeight.w700)),

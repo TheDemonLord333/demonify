@@ -63,7 +63,7 @@ class HomeScreen extends ConsumerWidget {
           leading: Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(gradient: LinearGradient(colors: [DColors.primary, Color(0xFF3B1478)])),
+            decoration: const BoxDecoration(gradient: DColors.favoriteGradient),
             child: const Icon(Icons.favorite_rounded, color: Colors.white),
           ),
           onTap: () => context.push('/favorites'),
