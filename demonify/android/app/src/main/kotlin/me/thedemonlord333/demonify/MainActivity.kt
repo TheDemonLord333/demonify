@@ -1,5 +1,6 @@
 package me.thedemonlord333.demonify
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// AudioServiceActivity verbindet die Flutter-Engine mit dem Hintergrund-Wiedergabedienst
+class MainActivity : AudioServiceActivity()
