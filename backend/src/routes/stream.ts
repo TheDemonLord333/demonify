@@ -72,7 +72,7 @@ export default async function streamRoutes(fastify: FastifyInstance) {
       schema: {
         tags: ['Wiedergabe'],
         params: z.object({ id: z.uuid() }),
-        body: z.object({ quality: z.enum(QUALITIES).default('original') }).optional(),
+        body: z.object({ quality: z.enum(QUALITIES).default('original') }).nullish(),
       },
     },
     async (req) => {

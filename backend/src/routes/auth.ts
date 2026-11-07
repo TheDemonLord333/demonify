@@ -77,7 +77,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     '/refresh',
     {
       config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
-      schema: { tags: ['Auth'], security: [], body: z.object({ refreshToken: z.string().min(10).max(200).optional() }).optional() },
+      schema: { tags: ['Auth'], security: [], body: z.object({ refreshToken: z.string().min(10).max(200).optional() }).nullish() },
     },
     async (req, reply) => {
       const fromBody = req.body?.refreshToken;
