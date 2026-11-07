@@ -1,0 +1,445 @@
+// Demonify – Datenmodell
+// Alle Beziehungen laufen über interne IDs (UUID). Namen sind nie Schlüssel,
+// mit Ausnahme des normalisierten Künstlernamens (nameKey), der bewusst eindeutig ist.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Benutzer & Authentifizierung
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum ClientType {
+  WEB
+  APP
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String
+  /// Normalisierter Benutzername (NFKC, getrimmt, Kleinschreibung) – eindeutig
+  usernameKey  String    @unique
+  displayName  String?
+  passwordHash String
+  role         Role      @default(USER)
+  disabledAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  sessions        Session[]
+  playlists       Playlist[]
+  favorites       FavoriteTrack[]
+  savedReleases   SavedRelease[]
+  followedArtists FollowedArtist[]
+  history         PlayHistory[]
+  settings        UserSettings?
+  invitesCreated  Invite[]         @relation("InviteCreator")
+  invitesUsed     Invite[]         @relation("InviteUser")
+  uploads         Upload[]
+}
+
+model Session {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String     @db.Uuid
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientType ClientType
+  deviceName String?
+  userAgent  String?
+  createdAt  DateTime   @default(now())
+  lastUsedAt DateTime   @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  revokeReason String?
+
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+}
+
+/// Refresh-Tokens werden nur als SHA-256-Hash gespeichert und bei jeder Nutzung rotiert.
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  sessionId  String    @db.Uuid
+  session    Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  usedAt     DateTime?
+
+  @@index([sessionId])
+}
+
+model Invite {
+  id           String    @id @default(uuid()) @db.Uuid
+  codeHash     String    @unique
+  role         Role      @default(USER)
+  note         String?
+  createdById  String    @db.Uuid
+  createdBy    User      @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedById     String?   @db.Uuid
+  usedBy       User?     @relation("InviteUser", fields: [usedById], references: [id], onDelete: SetNull)
+  revokedAt    DateTime?
+}
+
+model UserSettings {
+  userId    String   @id @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+// ───────────────────────────── Katalog
+
+enum ReleaseType {
+  ALBUM
+  EP
+  SINGLE
+}
+
+enum ArtistRole {
+  PRIMARY
+  FEATURED
+}
+
+enum ImageStorage {
+  /// Datei liegt in der Originalbibliothek (MUSIC_DIR)
+  LIBRARY
+  /// Generierte/extrahierte Datei im Cache (CACHE_DIR), z. B. eingebettete Cover
+  CACHE
+}
+
+enum ImageSource {
+  FILE
+  EMBEDDED
+  UPLOAD
+}
+
+model Image {
+  id        String       @id @default(uuid()) @db.Uuid
+  storage   ImageStorage
+  relPath   String
+  source    ImageSource
+  format    String
+  width     Int
+  height    Int
+  sha256    String
+  createdAt DateTime     @default(now())
+
+  artists  Artist[]
+  releases Release[]
+  tracks   Track[]
+
+  @@unique([storage, relPath])
+}
+
+model Artist {
+  id            String   @id @default(uuid()) @db.Uuid
+  /// Anzeige-Schreibweise
+  name          String
+  /// Normalisierter, eindeutiger Schlüssel (siehe docs/normalisierung.md)
+  nameKey       String   @unique
+  /// Suchtext (zusätzlich ohne Diakritika)
+  searchText    String
+  /// Relativer Ordner in MUSIC_DIR (null, solange noch nichts abgelegt wurde)
+  folderRelPath String?  @unique
+  imageId       String?  @db.Uuid
+  image         Image?   @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  /// Profilbild manuell gesetzt/entfernt → Scan überschreibt nicht
+  imageLocked   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  releases  Release[]
+  tracks    TrackArtist[]
+  followers FollowedArtist[]
+}
+
+model Release {
+  id             String      @id @default(uuid()) @db.Uuid
+  title          String
+  type           ReleaseType
+  year           Int?
+  genre          String?
+  albumArtistId  String      @db.Uuid
+  albumArtist    Artist      @relation(fields: [albumArtistId], references: [id], onDelete: Restrict)
+  coverImageId   String?     @db.Uuid
+  coverImage     Image?      @relation(fields: [coverImageId], references: [id], onDelete: SetNull)
+  folderRelPath  String?     @unique
+  searchText     String
+  metaLocked     Boolean     @default(false)
+  coverLocked    Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  tracks Track[]
+  savedBy SavedRelease[]
+
+  @@index([albumArtistId])
+  @@index([createdAt])
+}
+
+model Track {
+  id            String    @id @default(uuid()) @db.Uuid
+  releaseId     String    @db.Uuid
+  release       Release   @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+  title         String
+  discNumber    Int       @default(1)
+  trackNumber   Int       @default(1)
+  genre         String?
+  year          Int?
+  durationMs    Int       @default(0)
+  codec         String?
+  container     String?
+  bitrate       Int?
+  sampleRate    Int?
+  channels      Int?
+  bitDepth      Int?
+  fileSize      BigInt    @default(0)
+  fileMtime     DateTime?
+  /// SHA-256 über Dateigröße + erste/letzte MiB → erkennt verschobene Dateien
+  contentHash   String?
+  audioRelPath  String    @unique
+  coverImageId  String?   @db.Uuid
+  coverImage    Image?    @relation(fields: [coverImageId], references: [id], onDelete: SetNull)
+  available     Boolean   @default(true)
+  missingSince  DateTime?
+  metaLocked    Boolean   @default(false)
+  coverLocked   Boolean   @default(false)
+  /// Metadaten unvollständig (z. B. Titel nur aus Dateinamen) → Korrekturvorschlag
+  needsReview   Boolean   @default(false)
+  searchText    String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  artists     TrackArtist[]
+  playlistEntries PlaylistEntry[]
+  favorites   FavoriteTrack[]
+  history     PlayHistory[]
+  transcodes  TranscodedFile[]
+
+  @@index([releaseId, discNumber, trackNumber])
+  @@index([contentHash])
+  @@index([createdAt])
+}
+
+model TrackArtist {
+  trackId  String     @db.Uuid
+  track    Track      @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  artistId String     @db.Uuid
+  artist   Artist     @relation(fields: [artistId], references: [id], onDelete: Restrict)
+  role     ArtistRole
+  position Int        @default(0)
+
+  @@id([trackId, artistId])
+  @@index([artistId])
+}
+
+model TranscodedFile {
+  id        String   @id @default(uuid()) @db.Uuid
+  trackId   String   @db.Uuid
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  quality   String
+  relPath   String
+  fileSize  BigInt
+  /// Inhalts-Hash der Quelle zum Zeitpunkt der Erzeugung (Invalidierung bei Änderung)
+  sourceHash String?
+  createdAt DateTime @default(now())
+
+  @@unique([trackId, quality])
+}
+
+// ───────────────────────────── Benutzerbibliothek
+
+model Playlist {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String   @db.Uuid
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  searchText  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries PlaylistEntry[]
+
+  @@index([ownerId])
+}
+
+model PlaylistEntry {
+  id         String   @id @default(uuid()) @db.Uuid
+  playlistId String   @db.Uuid
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  trackId    String   @db.Uuid
+  track      Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  position   Int
+  addedAt    DateTime @default(now())
+
+  @@index([playlistId, position])
+}
+
+model FavoriteTrack {
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackId   String   @db.Uuid
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, trackId])
+}
+
+model SavedRelease {
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  releaseId String   @db.Uuid
+  release   Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, releaseId])
+}
+
+model FollowedArtist {
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artistId  String   @db.Uuid
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, artistId])
+}
+
+model PlayHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackId     String   @db.Uuid
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  playedAt    DateTime @default(now())
+  contextType String?
+  contextId   String?
+
+  @@index([userId, playedAt])
+}
+
+// ───────────────────────────── Uploads, Aufträge, Probleme
+
+enum UploadKind {
+  AUDIO
+  IMAGE
+}
+
+enum UploadStatus {
+  RECEIVING
+  VALIDATED
+  INVALID
+  CONSUMED
+  ABORTED
+}
+
+model Upload {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @db.Uuid
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         UploadKind
+  originalName String
+  declaredSize BigInt
+  receivedSize BigInt       @default(0)
+  status       UploadStatus @default(RECEIVING)
+  /// Ergebnis der tatsächlichen Prüfung (ffprobe/sharp) inkl. gelesener Tags
+  probe        Json?
+  error        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  expiresAt    DateTime
+
+  @@index([status, expiresAt])
+}
+
+enum CommitStatus {
+  PROCESSING
+  DONE
+  FAILED
+}
+
+/// Idempotenz für den Upload-Abschluss: gleicher Schlüssel → gleiches Ergebnis, nie doppelt.
+model UploadCommit {
+  idempotencyKey String       @id
+  userId         String       @db.Uuid
+  status         CommitStatus
+  releaseId      String?      @db.Uuid
+  result         Json?
+  error          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+enum JobType {
+  LIBRARY_SCAN
+  TRANSCODE
+  UPLOAD_CLEANUP
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model Job {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        JobType
+  status      JobStatus @default(QUEUED)
+  payload     Json      @default("{}")
+  /// Eindeutiger Schlüssel gegen doppelte Aufträge (z. B. transcode:<track>:<quality>)
+  dedupeKey   String?
+  progress    Float     @default(0)
+  total       Int       @default(0)
+  done        Int       @default(0)
+  message     String?
+  result      Json?
+  error       String?
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  @@index([status, type, createdAt])
+  @@index([dedupeKey])
+}
+
+enum IssueKind {
+  FILE_ERROR
+  MISSING_FILE
+  INCOMPLETE_METADATA
+  TRANSCODE_ERROR
+}
+
+model LibraryIssue {
+  id         String    @id @default(uuid()) @db.Uuid
+  kind       IssueKind
+  relPath    String
+  trackId    String?   @db.Uuid
+  message    String
+  jobId      String?   @db.Uuid
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  @@unique([kind, relPath])
+  @@index([resolvedAt])
+}

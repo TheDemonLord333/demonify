@@ -1,0 +1,412 @@
+{
+  "@@locale": "de",
+  "appTitle": "Demonify",
+  "add": "Hinzufügen",
+  "addToPlaylist": "Zur Playlist hinzufügen",
+  "addToQueue": "Zur Warteschlange hinzufügen",
+  "addedToQueue": "Zur Warteschlange hinzugefügt.",
+  "adminAddArtist": "Künstler hinzufügen …",
+  "adminAddFeature": "Feature hinzufügen …",
+  "adminArtistExists": "„{name}“ existiert bereits (gleicher Name nach Normalisierung).",
+  "@adminArtistExists": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminArtistName": "Künstlername",
+  "adminArtistSearch": "Künstler suchen …",
+  "adminArtists": "Künstler",
+  "adminArtistsSub": "Anlegen, umbenennen, Profilbilder",
+  "adminArtistsTitle": "Künstlerverwaltung",
+  "adminChangeCover": "Cover ersetzen",
+  "adminChooseAudio": "Audiodateien auswählen",
+  "adminChooseCover": "Cover auswählen",
+  "adminCommitting": "Wird abgelegt …",
+  "adminConfirmHint": "Der Server prüft die Dateien, legt Künstler-, Typ- und Veröffentlichungsordner automatisch an und überschreibt keine vorhandenen Dateien.",
+  "adminConfirmUpload": "Upload bestätigen",
+  "adminCreate": "Anlegen",
+  "adminCreateArtist": "Neuen Künstler erstellen",
+  "adminCreateArtistNamed": "Neuen Künstler erstellen: „{name}“",
+  "@adminCreateArtistNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminCreateInvite": "Einladung erstellen",
+  "adminCreateUser": "Benutzer anlegen",
+  "adminDisable": "Sperren",
+  "adminDisabled": "gesperrt",
+  "adminDisc": "Disc",
+  "adminEnable": "Entsperren",
+  "adminFeatures": "Features",
+  "adminGenre": "Genre",
+  "adminInviteCreated": "Einladung erstellt (Link wird nur jetzt angezeigt)",
+  "adminInvites": "Einladungen",
+  "adminIssues": "Offene Probleme",
+  "adminJobs": "Aufträge & Probleme",
+  "adminJobsSub": "Bibliotheksscan, Fortschritt, Fehler",
+  "adminMakeAdmin": "Zum Admin machen",
+  "adminMakeUser": "Zum Benutzer machen",
+  "adminNewRelease": "Neue Veröffentlichung ({type}) anlegen",
+  "@adminNewRelease": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "adminNoArtistFound": "Keine passenden Künstler gefunden.",
+  "adminOpenRelease": "Veröffentlichung öffnen",
+  "adminOwnCover": "eigenes Cover",
+  "adminReleaseCount": "{count, plural, =1{1 Veröffentlichung} other{{count} Veröffentlichungen}}",
+  "@adminReleaseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminReleaseCover": "Veröffentlichungscover",
+  "adminReleaseSearch": "Veröffentlichung suchen …",
+  "adminReleaseTitle": "Titel",
+  "adminReleasesSub": "Metadaten, Cover, Trackreihenfolge",
+  "adminReleasesTitle": "Veröffentlichungen",
+  "adminRemoveArtistImage": "Profilbild entfernen",
+  "adminRemoveSongCover": "Songcover entfernen (Veröffentlichungscover verwenden)",
+  "adminReplaceArtistImage": "Profilbild ersetzen",
+  "adminReplaceSongCover": "Songcover ersetzen",
+  "adminResolve": "Als erledigt markieren",
+  "adminReviewHint": "Titel, Künstler, Features, Nummern, Reihenfolge und individuelle Songcover prüfen. Ohne eigenes Songcover wird das Veröffentlichungscover verwendet.",
+  "adminRevoke": "Widerrufen",
+  "adminRevokeSessions": "Alle Sitzungen beenden",
+  "adminSaveOrder": "Reihenfolge speichern",
+  "adminSessions": "{count, plural, =1{1 Sitzung} other{{count} Sitzungen}}",
+  "@adminSessions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSimilarArtists": "Ähnliche Namen (werden nicht zusammengeführt):",
+  "adminSongCover": "Songcover zuordnen",
+  "adminStartPassword": "Startpasswort (mind. 10 Zeichen)",
+  "adminStartScan": "Bibliotheksscan",
+  "adminStepArtist": "Künstler",
+  "adminStepArtistHint": "Vorhandenen Künstler auswählen oder neuen anlegen – Vorschläge erscheinen ab dem ersten Buchstaben.",
+  "adminStepConfirm": "Bestätigen",
+  "adminStepFiles": "Audiodateien",
+  "adminStepMeta": "Metadaten & Cover",
+  "adminStepRelease": "Veröffentlichung",
+  "adminStepReview": "Prüfen",
+  "adminStepType": "Typ",
+  "adminTitle": "Titel",
+  "adminTrackArtistMissing": "Track {n}: mindestens ein Künstler nötig.",
+  "@adminTrackArtistMissing": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTrackNo": "Nr.",
+  "adminTrackNumberDuplicate": "Disc {disc}, Track {number} ist doppelt vergeben.",
+  "@adminTrackNumberDuplicate": {
+    "placeholders": {
+      "disc": {
+        "type": "int"
+      },
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTrackTitleMissing": "Track {n}: Titel fehlt.",
+  "@adminTrackTitleMissing": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTracks": "Tracks",
+  "adminType": "Typ",
+  "adminUnavailable": "Nicht verfügbare Dateien",
+  "adminUpload": "Musik hochladen",
+  "adminUploadAnother": "Weiteren Upload starten",
+  "adminUploadArtistImage": "Profilbild hochladen",
+  "adminUploadDone": "Upload abgeschlossen",
+  "adminUploadSub": "Künstler, Veröffentlichung, Dateien – Ablage automatisch",
+  "adminUploading": "Wird hochgeladen …",
+  "adminUsers": "Benutzer",
+  "adminUsersSub": "Benutzer, Rollen, Einladungen",
+  "adminValidated": "Geprüft ✓",
+  "adminValidating": "Wird geprüft …",
+  "adminWaitingUploads": "Warte auf Abschluss und Prüfung aller Uploads …",
+  "adminYear": "Jahr",
+  "allSongs": "Alle Songs",
+  "appVersion": "App-Version",
+  "appearsOn": "Enthalten in",
+  "artistLabel": "Künstler",
+  "artists": "Künstler",
+  "back": "Zurück",
+  "cancel": "Abbrechen",
+  "cancelled": "Abgebrochen",
+  "change": "Ändern",
+  "clear": "Leeren",
+  "clearQueue": "Leeren",
+  "close": "Schließen",
+  "copy": "Kopieren",
+  "delete": "Löschen",
+  "discNumber": "Disc {n}",
+  "@discNumber": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "displayNameOptional": "Anzeigename (optional)",
+  "done": "Fertig",
+  "download": "Herunterladen",
+  "downloadCollections": "Veröffentlichungen & Playlists",
+  "downloadFailed": "Fehlgeschlagen",
+  "downloadQuality": "Downloadqualität",
+  "downloadQueued": "Wartet …",
+  "downloading": "Wird heruntergeladen …",
+  "downloads": "Downloads",
+  "downloadsEmpty": "Noch keine Downloads",
+  "downloadsEmptyHint": "Lade Songs, Veröffentlichungen oder Playlists herunter, um sie ohne Internet zu hören.",
+  "downloadsInProgress": "In Bearbeitung",
+  "downloadsRemoveAll": "Alle Downloads löschen",
+  "downloadsRemoveAllConfirm": "Alle heruntergeladenen Dateien dieses Kontos werden von diesem Gerät gelöscht.",
+  "downloadsRetryFailed": "Fehlgeschlagene wiederholen",
+  "downloadsServerNote": "Hinweis: Heruntergeladene Dateien liegen im privaten App-Speicher dieses Kontos. Wird ein Konto später gesperrt oder ein Song entfernt, bleiben bereits geladene Dateien bis zur nächsten Anmeldung/Abmeldung technisch auf dem Gerät erhalten.",
+  "eqActiveHint": "Wirkt auf Streaming und Offline-Wiedergabe.",
+  "eqEnabled": "Equalizer",
+  "eqHeadroom": "Automatischer Headroom",
+  "eqHeadroomHint": "Senkt die Gesamtlautstärke um die stärkste Anhebung, um Übersteuerung zu vermeiden (aktuell {db} dB).",
+  "@eqHeadroomHint": {
+    "placeholders": {
+      "db": {
+        "type": "String"
+      }
+    }
+  },
+  "eqInactiveHint": "Aus – Wiedergabe unverändert.",
+  "eqInfoAirplay": "AirPlay und Bluetooth: Der Klang wird auf diesem Gerät berechnet und dann übertragen – der Equalizer wirkt also auch dort.",
+  "eqInfoBody": "10 Bänder von 31 Hz bis 16 kHz, je −12 bis +12 dB. Die Dateien selbst werden nie verändert; Einstellungen gelten für dieses Konto auf diesem Gerät.",
+  "eqInfoCast": "Bluetooth und Kopfhörer: Der Klang wird auf diesem Gerät berechnet – der Equalizer wirkt. Bei künftigem Casting (Wiedergabe direkt auf dem Zielgerät) wirkt er nicht.",
+  "eqInfoTitle": "So funktioniert der Equalizer",
+  "eqPreamp": "Vorverstärkung",
+  "eqPresets": "Voreinstellungen",
+  "eqUnavailable": "Die Audioengine hat den Equalizer-Filter auf diesem Gerät nicht angenommen. Die Wiedergabe funktioniert weiterhin, aber ohne Klangverarbeitung.",
+  "equalizer": "Equalizer",
+  "error": "Fehler",
+  "errorGenericTitle": "Etwas ist schiefgelaufen",
+  "errorNetworkTitle": "Keine Verbindung",
+  "favoriteAdd": "Zu Lieblingssongs hinzufügen",
+  "favoriteRemove": "Aus Lieblingssongs entfernen",
+  "favorites": "Lieblingssongs",
+  "favoritesEmpty": "Noch keine Lieblingssongs",
+  "favoritesEmptyHint": "Tippe auf das Herz, um Songs hier zu sammeln.",
+  "fieldRequired": "Pflichtfeld",
+  "follow": "Folgen",
+  "followedArtists": "Gefolgte Künstler",
+  "following": "Folge ich",
+  "goToArtistNamed": "Zu {name}",
+  "@goToArtistNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goToRelease": "Zur Veröffentlichung",
+  "greetingDay": "Hallo",
+  "greetingEvening": "Guten Abend",
+  "greetingMorning": "Guten Morgen",
+  "greetingName": "{greeting}, {name}",
+  "@greetingName": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "hidePassword": "Passwort verbergen",
+  "homeEmptyMessage": "Sobald Musik hochgeladen oder gescannt wurde, erscheint sie hier.",
+  "homeEmptyTitle": "Noch keine Musik in der Bibliothek",
+  "inviteCode": "Einladungscode oder -link",
+  "inviteRedeem": "Einladung einlösen",
+  "inviteSubmit": "Konto erstellen",
+  "inviteSuccess": "Konto erstellt – du kannst dich jetzt anmelden.",
+  "jobCleanup": "Upload-Bereinigung",
+  "jobScan": "Bibliotheksscan",
+  "jobTranscode": "Transkodierung",
+  "libraryAll": "Alle",
+  "libraryEmpty": "Hier ist noch nichts.",
+  "libraryFollowed": "Gefolgt",
+  "librarySaved": "Gespeichert",
+  "login": "Anmelden",
+  "loginChangeServer": "Serveradresse ändern",
+  "loginSubtitle": "Deine private Musikplattform",
+  "logout": "Abmelden",
+  "logoutDeleteDownloads": "Downloads dieses Kontos von diesem Gerät löschen",
+  "logoutMessage": "Du wirst auf diesem Gerät abgemeldet. Die Sitzung wird auch auf dem Server beendet.",
+  "logoutTitle": "Abmelden?",
+  "manageDownloads": "Downloads verwalten",
+  "moreActions": "Weitere Aktionen",
+  "navAdmin": "Verwaltung",
+  "navHome": "Start",
+  "navLibrary": "Bibliothek",
+  "navSearch": "Suche",
+  "navSettings": "Einstellungen",
+  "newReleases": "Neu hinzugefügt",
+  "next": "Weiter",
+  "nothingPlaying": "Nichts in der Wiedergabe",
+  "nowPlaying": "Wird gespielt",
+  "off": "Aus",
+  "offlineBanner": "Offline – nur heruntergeladene Musik ist verfügbar.",
+  "on": "An",
+  "openPlayer": "Player öffnen",
+  "password": "Passwort",
+  "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+  "passwordRepeat": "Passwort wiederholen",
+  "passwordTooShort": "Mindestens 10 Zeichen.",
+  "pause": "Pause",
+  "play": "Abspielen",
+  "playNext": "Als Nächstes spielen",
+  "playlist": "Playlist",
+  "playlistAdded": "Zu „{name}“ hinzugefügt.",
+  "@playlistAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistCreate": "Erstellen",
+  "playlistDelete": "Playlist löschen",
+  "playlistDeleteConfirm": "„{name}“ wirklich löschen?",
+  "@playlistDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistEditOrder": "Reihenfolge bearbeiten",
+  "playlistEmpty": "Diese Playlist ist leer",
+  "playlistEmptyHint": "Füge Songs über das Menü ⋮ eines Songs hinzu.",
+  "playlistName": "Name der Playlist",
+  "playlistNew": "Neue Playlist",
+  "playlistRemoveEntry": "Aus Playlist entfernen",
+  "playlistRename": "Umbenennen",
+  "playlists": "Playlists",
+  "popularSongs": "Beliebte Songs",
+  "presetBassBoost": "Bass Boost",
+  "presetCustom": "Benutzerdefiniert",
+  "presetElectronic": "Elektronisch",
+  "presetNeutral": "Neutral",
+  "presetPop": "Pop",
+  "presetRock": "Rock",
+  "presetVocal": "Gesang",
+  "previous": "Zurück",
+  "qualityHigh": "Hoch (AAC 256 kbit/s)",
+  "qualityHint": "Transkodierte Stufen werden beim ersten Abruf auf dem Server erzeugt; bis dahin wird das Original geliefert.",
+  "qualityLow": "Datensparend (AAC 96 kbit/s)",
+  "qualityNormal": "Normal (AAC 160 kbit/s)",
+  "qualityOriginal": "Original (verlustfrei, falls vorhanden)",
+  "queue": "Warteschlange",
+  "queueEmpty": "Die Warteschlange ist leer",
+  "recentlyPlayed": "Zuletzt gehört",
+  "reconnect": "Verbinden",
+  "releases": "Veröffentlichungen",
+  "remove": "Entfernen",
+  "removeDownload": "Download entfernen",
+  "removeDownloadConfirm": "Die heruntergeladenen Dateien werden von diesem Gerät gelöscht.",
+  "removeFromQueue": "Aus Warteschlange entfernen",
+  "repeatAll": "Alle wiederholen",
+  "repeatOff": "Wiederholung aus",
+  "repeatOne": "Titel wiederholen",
+  "reset": "Zurücksetzen",
+  "retry": "Erneut versuchen",
+  "roleAdmin": "Administrator",
+  "roleUser": "Benutzer",
+  "save": "Speichern",
+  "saved": "Gespeichert",
+  "searchEmptyMessage": "Suche nach Songs, Künstlern, Veröffentlichungen und deinen Playlists.",
+  "searchEmptyTitle": "Was möchtest du hören?",
+  "searchHint": "Songs, Künstler, Alben …",
+  "searchNoResults": "Keine Ergebnisse für „{query}“",
+  "@searchNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "select": "Auswählen",
+  "serverAddress": "Serveradresse",
+  "serverAddressHint": "z. B. demonify.thedemonlord333.me",
+  "settingsAbout": "Über",
+  "settingsAccount": "Konto",
+  "settingsPlayback": "Wiedergabe & Downloads",
+  "settingsSound": "Klang",
+  "showAll": "Alle anzeigen",
+  "showAllSongs": "Alle {count} Songs anzeigen",
+  "@showAllSongs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "showPassword": "Passwort anzeigen",
+  "shuffle": "Zufallswiedergabe",
+  "shuffleOff": "Zufallswiedergabe aus",
+  "shuffleOn": "Zufallswiedergabe an",
+  "songs": "Songs",
+  "sort": "Sortieren",
+  "sortArtist": "Künstler",
+  "sortRecent": "Zuletzt hinzugefügt",
+  "sortTitle": "Alphabetisch",
+  "sourceLocal": "Offline-Datei",
+  "sourceStream": "Stream",
+  "storageUsed": "{size} belegt",
+  "@storageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "streamingQuality": "Streamingqualität",
+  "trackCount": "{count, plural, =0{Keine Songs} =1{1 Song} other{{count} Songs}}",
+  "@trackCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "typeAlbum": "Album",
+  "typeAlbums": "Alben",
+  "typeEp": "EP",
+  "typeEps": "EPs",
+  "typeSingle": "Single",
+  "typeSingles": "Singles",
+  "unavailable": "Nicht verfügbar",
+  "upNext": "Als Nächstes",
+  "username": "Benutzername",
+  "usernameRules": "3–32 Zeichen: Buchstaben, Ziffern, Punkt, Unter- und Bindestrich.",
+  "yourPlaylists": "Deine Playlists"
+}

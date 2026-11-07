@@ -1,0 +1,49 @@
+# ── Secrets & lokale Konfiguration
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.local
+local.properties
+deploy/*.local.*
+
+# ── Signierschlüssel & Keystores
+*.jks
+*.keystore
+key.properties
+*.p12
+*.p8
+*.pem
+*.key
+*.mobileprovision
+*.cer
+
+# ── Build-Ausgaben
+node_modules/
+dist/
+build/
+coverage/
+backend/src/generated/
+admin-web/dist/
+
+# ── Musik, Uploads, Cache, generierte Streaming-Dateien
+/music/
+/srv/
+/uploads/
+/cache/
+backend/uploads/
+backend/cache/
+*.flac
+*.mp3
+*.m4a
+*.aac
+*.ogg
+*.opus
+*.wav
+/data/
+backend/data/
+
+# ── Sonstiges
+.DS_Store
+*.log
+.idea/
