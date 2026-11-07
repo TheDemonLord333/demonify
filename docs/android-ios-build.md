@@ -75,7 +75,8 @@ lädt der Gradle-Build beim ersten Build von GitHub (media_kit_libs_android_audi
 
 ## iOS (auf dem Mac mit Xcode)
 
-1. Repository klonen, dann:
+1. Repository klonen, dann im Ordner `demonify` (eine `Podfile` gibt es noch nicht – Flutter erzeugt sie
+   und führt `pod install` selbst aus; deshalb **nicht** direkt `pod install` aufrufen):
 
 ```bash
 cd demonify
@@ -86,7 +87,7 @@ flutter pub get
 ```
 
 ```bash
-cd ios && pod install && cd ..
+flutter build ios --config-only
 ```
 
 2. `ios/Runner.xcworkspace` in Xcode öffnen → Target **Runner** → *Signing & Capabilities*:

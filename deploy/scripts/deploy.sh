@@ -14,6 +14,11 @@ KEEP=5
 
 [[ $EUID -eq 0 ]] || { echo "Bitte als root ausführen."; exit 1; }
 [[ -f "$APP_DIR/shared/.env" ]] || { echo "$APP_DIR/shared/.env fehlt – zuerst install-debian.sh ausführen."; exit 1; }
+# .env muss sowohl für systemd als auch für bash lesbar sein (Werte mit Leerzeichen in Anführungszeichen)
+if grep -nE '^[A-Za-z_][A-Za-z0-9_]*=[^"'"'"'#]*[[:space:]][^#]*$' "$APP_DIR/shared/.env" | grep -vE '=[^[:space:]]*[[:space:]]*$'; then
+  echo "Fehler: Obige Zeile(n) in $APP_DIR/shared/.env enthalten Leerzeichen ohne Anführungszeichen, z. B. LOGIN_RATE_LIMIT_WINDOW=\"5 minutes\"."
+  exit 1
+fi
 
 echo "==> Quellcode nach $RELEASE"
 install -d -o root -g "$APP_USER" -m 0750 "$RELEASE"
