@@ -134,7 +134,7 @@ class FavoriteButton extends ConsumerWidget {
           fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
           key: ValueKey(fav),
           size: size,
-          color: fav ? DColors.primary : DColors.text,
+          color: fav ? DColors.favoriteStart : DColors.text,
         ),
       ),
       onPressed: () async {

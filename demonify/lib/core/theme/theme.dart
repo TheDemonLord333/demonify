@@ -27,6 +27,11 @@ ThemeData buildDemonifyTheme() {
   final text = base.textTheme.apply(bodyColor: DColors.text, displayColor: DColors.text);
   return base.copyWith(
     scaffoldBackgroundColor: DColors.background,
+    // Hervorhebungen beim Antippen/Fokussieren: Lila
+    highlightColor: DColors.highlight,
+    splashColor: DColors.highlightStrong,
+    hoverColor: DColors.highlight,
+    focusColor: DColors.highlightStrong,
     canvasColor: DColors.background,
     textTheme: text.copyWith(
       displaySmall: text.displaySmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1),
@@ -43,25 +48,26 @@ ThemeData buildDemonifyTheme() {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.black,
-      indicatorColor: DColors.primary.withValues(alpha: 0.22),
+      // Aktive Navigation: Grün (gut erkennbar), Hintergrund der Auswahl dezent grün
+      indicatorColor: DColors.secondary.withValues(alpha: 0.20),
       surfaceTintColor: Colors.transparent,
       iconTheme: WidgetStateProperty.resolveWith(
-        (s) => IconThemeData(color: s.contains(WidgetState.selected) ? DColors.primaryHover : DColors.textMuted),
+        (s) => IconThemeData(color: s.contains(WidgetState.selected) ? DColors.secondary : DColors.textMuted),
       ),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (s) => TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: s.contains(WidgetState.selected) ? DColors.text : DColors.textMuted,
+          color: s.contains(WidgetState.selected) ? DColors.secondary : DColors.textMuted,
         ),
       ),
     ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: Colors.black,
-      indicatorColor: DColors.primary.withValues(alpha: 0.22),
-      selectedIconTheme: const IconThemeData(color: DColors.primaryHover),
+      indicatorColor: DColors.secondary.withValues(alpha: 0.20),
+      selectedIconTheme: const IconThemeData(color: DColors.secondary),
       unselectedIconTheme: const IconThemeData(color: DColors.textMuted),
-      selectedLabelTextStyle: const TextStyle(color: DColors.text, fontWeight: FontWeight.w700),
+      selectedLabelTextStyle: const TextStyle(color: DColors.secondary, fontWeight: FontWeight.w700),
       unselectedLabelTextStyle: const TextStyle(color: DColors.textMuted),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -117,7 +123,12 @@ ThemeData buildDemonifyTheme() {
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: DColors.surface3, contentTextStyle: TextStyle(color: DColors.text)),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: DColors.primary),
     dividerTheme: const DividerThemeData(color: DColors.border, thickness: 1),
-    listTileTheme: const ListTileThemeData(iconColor: DColors.textMuted, minVerticalPadding: 8),
+    listTileTheme: const ListTileThemeData(
+      iconColor: DColors.textMuted,
+      minVerticalPadding: 8,
+      selectedColor: DColors.primaryHover,
+      selectedTileColor: DColors.highlight,
+    ),
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
       TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),

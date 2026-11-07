@@ -19,6 +19,19 @@ abstract final class DColors {
   /// Sekundärfarbe Grün: ergänzende Akzente und Statusanzeigen
   static const secondary = Color(0xFF1ED760);
   static const danger = Color(0xFFFF5470);
+
+  /// Hintergrund für Hervorhebungen (Auswahl, Antippen, aktive Elemente) – Lila
+  static const highlight = Color(0x339146FF);
+  static const highlightStrong = Color(0x559146FF);
+
+  /// Lieblingssongs: Blau-Violett, bleibt in der lila Farbwelt, aber klar unterscheidbar
+  static const favoriteStart = Color(0xFF5B6CFF);
+  static const favoriteEnd = Color(0xFF7B3FE4);
+  static const favoriteGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [favoriteStart, favoriteEnd],
+  );
   static const warning = Color(0xFFFFB547);
 }
 
