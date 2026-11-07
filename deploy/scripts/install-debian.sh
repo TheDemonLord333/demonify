@@ -40,6 +40,7 @@ echo "   Bestehende Bibliothek ggf.: chown -R $APP_USER:$APP_USER $MUSIC_DIR && 
 usermod -a -G "$APP_USER" www-data
 
 echo "==> PostgreSQL (nur lokal)"
+cd /tmp  # vermeidet "could not change directory to /root" bei sudo -u postgres
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
   DB_PASS="$(openssl rand -hex 24)"
   sudo -u postgres psql -c "CREATE ROLE $DB_USER LOGIN PASSWORD '$DB_PASS';"
