@@ -103,6 +103,17 @@ describe('Authentifizierung', () => {
     const withCsrf = await send('POST', '/playlists', { cookie: cookieHeader, 'x-csrf-token': csrf.value }, { name: 'X' });
     expect(withCsrf.statusCode).toBe(200);
   });
+  it('Web-Refresh per Cookie (ohne Body) rotiert die Sitzung', async () => {
+    const res = await send('POST', '/auth/login', {}, { username: 'bob', password: 'TestPasswort123', client: 'web' });
+    const cookies = res.cookies as Array<{ name: string; value: string }>;
+    const rt = cookies.find((c) => c.name === 'dmf_rt')!.value;
+    const csrf = cookies.find((c) => c.name === 'dmf_csrf')!.value;
+    const noCsrf = await env.app.inject({ method: 'POST', url: `${API}/auth/refresh`, headers: { cookie: `dmf_rt=${rt}; dmf_csrf=${csrf}` } });
+    expect(noCsrf.statusCode).toBe(403);
+    const ok = await env.app.inject({ method: 'POST', url: `${API}/auth/refresh`, headers: { cookie: `dmf_rt=${rt}; dmf_csrf=${csrf}`, 'x-csrf-token': csrf } });
+    expect(ok.statusCode, ok.body).toBe(200);
+    expect(ok.json().csrfToken).toBeTruthy();
+  });
   it('Einladung kann genau einmal eingelöst werden', async () => {
     const inv = await send('POST', '/admin/invites', admin.auth, { role: 'USER', expiresInHours: 1 });
     expect(inv.statusCode).toBe(201);

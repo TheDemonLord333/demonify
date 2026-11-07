@@ -148,7 +148,7 @@ class _AdminUploadScreenState extends ConsumerState<AdminUploadScreen> {
       final up = _FileUpload(File(f.path!), f.name, 'AUDIO');
       final draft = _TrackDraft(
         audio: up,
-        title: f.name.replaceAll(RegExp(r'\.[^.]+$'), '').replaceFirst(RegExp(r'^\d+\s*[-.]\s*'), ''),
+        title: f.name.replaceAll(RegExp(r'\.[^.]+$'), '').replaceFirst(RegExp(r'^\d{1,3}(?:\s*[-._]\s*|\s+)'), ''),
         number: _tracks.length + 1,
         artists: _artist == null ? [] : [_artist!],
       );
@@ -157,7 +157,7 @@ class _AdminUploadScreenState extends ConsumerState<AdminUploadScreen> {
         // Tags aus der Prüfung als Vorschlag übernehmen
         final tags = (up.probe?['tags'] as Map?)?.cast<String, dynamic>();
         if (tags != null && up.state == _UpState.ready) {
-          if (tags['title'] is String && draft.title == f.name.replaceAll(RegExp(r'\.[^.]+$'), '').replaceFirst(RegExp(r'^\d+\s*[-.]\s*'), '')) {
+          if (tags['title'] is String && draft.title == f.name.replaceAll(RegExp(r'\.[^.]+$'), '').replaceFirst(RegExp(r'^\d{1,3}(?:\s*[-._]\s*|\s+)'), '')) {
             draft.title = tags['title'] as String;
           }
           if (tags['trackNumber'] is num) draft.number = (tags['trackNumber'] as num).toInt();

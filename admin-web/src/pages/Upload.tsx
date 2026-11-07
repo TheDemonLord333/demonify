@@ -498,7 +498,7 @@ export function UploadPage() {
 }
 
 function stripExt(name: string) {
-  return name.replace(/\.[^.]+$/, '').replace(/^\d+\s*[-.]\s*/, '');
+  return name.replace(/\.[^.]+$/, '').replace(/^\d{1,3}(?:\s*[-._]\s*|\s+)/, '');
 }
 
 function UploadState({ u }: { u: FileUpload }) {

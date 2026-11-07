@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#050507">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <title>Demonify</title>
+  <style>
+    :root { --bg:#050507; --surface:#0f0f14; --border:#2e2e3a; --text:#f4f3f8; --muted:#a7a5b5; --primary:#9146ff; --primary-hover:#a466ff; --secondary:#1ed760; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: radial-gradient(ellipse at top, #2a1250 0%, var(--bg) 60%) fixed, var(--bg);
+      color: var(--text); font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      display: grid; place-items: center; min-height: 100vh; padding: 24px 16px;
+    }
+    main { width: min(520px, 100%); text-align: center; }
+    img { width: 140px; height: 140px; border-radius: 32px; box-shadow: 0 0 80px rgba(145,70,255,.4); }
+    h1 { font-size: clamp(36px, 8vw, 56px); margin: 24px 0 8px; letter-spacing: -0.03em; }
+    p { color: var(--muted); line-height: 1.55; margin: 0 0 12px; }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
+    a.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 24px; border-radius: 999px; font-weight: 700; text-decoration: none; }
+    a.primary { background: var(--primary); color: #fff; }
+    a.primary:hover { background: var(--primary-hover); }
+    .badge { display: inline-block; margin-top: 32px; padding: 6px 14px; border-radius: 999px; background: rgba(30,215,96,.12); color: var(--secondary); font-size: 13px; font-weight: 700; }
+    a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/demonify-icon.png" alt="Demonify-Logo: gehörnter Dämon mit Kopfhörern">
+    <h1>Demonify</h1>
+    <p>Die private Musikplattform für Familie und Freunde.</p>
+    <p>Zum Hören nutze die Demonify-App für Android oder iOS. Die Musik-Webversion folgt später an dieser Adresse.</p>
+    <div class="actions">
+      <a class="btn primary" href="/admin/">Zur Verwaltung</a>
+    </div>
+    <span class="badge">Privater Zugang – nur mit Einladung</span>
+  </main>
+</body>
+</html>

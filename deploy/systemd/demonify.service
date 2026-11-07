@@ -1,0 +1,33 @@
+[Unit]
+Description=Demonify API (Fastify)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=demonify
+Group=demonify
+WorkingDirectory=/srv/nodeapps/demonify/current/backend
+EnvironmentFile=/srv/nodeapps/demonify/shared/.env
+ExecStart=/usr/bin/node dist/src/server.js
+Restart=on-failure
+RestartSec=5
+# Begrenzte Ressourcen (FFmpeg-Transkodierung läuft als Kindprozess)
+Nice=5
+MemoryMax=2G
+TasksMax=256
+# Härtung
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# Schreibzugriff nur auf Musik (Upload-Ablage) und Datenverzeichnis
+ReadWritePaths=/srv/music /srv/nodeapps/demonify/data
+
+[Install]
+WantedBy=multi-user.target
