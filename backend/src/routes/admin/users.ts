@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { authOf } from '../../plugins/auth.js';
 import { ApiError, badRequest, notFound } from '../../lib/errors.js';
 import { randomToken, sha256 } from '../../lib/tokens.js';
-import { createUser, hashPassword, revokeAllSessions, toUserDto, validatePassword } from '../../services/auth.js';
+import { createUser, deleteUserAccount, hashPassword, revokeAllSessions, toUserDto, validatePassword } from '../../services/auth.js';
 
 export default async function adminUserRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -88,11 +88,11 @@ export default async function adminUserRoutes(fastify: FastifyInstance) {
   });
 
   app.delete('/users/:id', { schema: { tags: ['Verwaltung'], params: idParam } }, async (req) => {
-    if (req.params.id === authOf(req).userId) throw badRequest('Das eigene Konto kann nicht gelöscht werden.');
-    const user = await app.db.user.findUnique({ where: { id: req.params.id } });
-    if (!user) throw notFound('Benutzer nicht gefunden.');
-    if (user.role === 'ADMIN') await ensureAnotherAdmin(user.id);
-    await app.db.user.delete({ where: { id: user.id } });
+    if (req.params.id === authOf(req).userId) {
+      throw badRequest('Das eigene Konto bitte in der App unter Einstellungen → Konto löschen entfernen.');
+    }
+    const user = await deleteUserAccount(app.db, req.params.id);
+    req.log.info({ userId: user.id, by: authOf(req).userId }, 'Konto durch Administrator gelöscht');
     return { ok: true };
   });
 

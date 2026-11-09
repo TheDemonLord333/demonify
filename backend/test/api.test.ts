@@ -509,3 +509,49 @@ describe('Private Nutzerdaten', () => {
     expect(homeA.newReleases.length).toBeGreaterThan(0);
   });
 });
+
+describe('Konten löschen', () => {
+  it('Benutzer löscht eigenes Konto nur mit richtigem Passwort; private Daten und Sitzungen verschwinden, Bibliothek bleibt', async () => {
+    const u = await makeUser(env, 'loeschmich');
+    const track = await env.db.track.findFirstOrThrow();
+    const tracksBefore = await env.db.track.count();
+    await send('POST', '/playlists', u.auth, { name: 'Weg damit', trackIds: [track.id] });
+    await send('PUT', `/library/favorites/${track.id}`, u.auth);
+    await send('POST', '/library/history', u.auth, { trackId: track.id });
+
+    const wrong = await env.app.inject({ method: 'DELETE', url: `${API}/me`, headers: u.auth, payload: { password: 'falschfalsch' } });
+    expect(wrong.statusCode).toBe(400);
+    expect(wrong.json().error.code).toBe('WRONG_PASSWORD');
+
+    const ok = await env.app.inject({ method: 'DELETE', url: `${API}/me`, headers: u.auth, payload: { password: 'TestPasswort123' } });
+    expect(ok.statusCode, ok.body).toBe(200);
+    expect(await env.db.user.count({ where: { id: u.id } })).toBe(0);
+    expect(await env.db.playlist.count({ where: { ownerId: u.id } })).toBe(0);
+    expect(await env.db.favoriteTrack.count({ where: { userId: u.id } })).toBe(0);
+    expect(await env.db.playHistory.count({ where: { userId: u.id } })).toBe(0);
+    expect(await env.db.session.count({ where: { userId: u.id } })).toBe(0);
+    expect(await env.db.track.count()).toBe(tracksBefore);
+    expect((await get('/me', u.auth)).statusCode).toBe(401);
+    expect((await send('POST', '/auth/refresh', {}, { refreshToken: u.refreshToken })).statusCode).toBe(401);
+    expect((await send('POST', '/auth/login', {}, { username: 'loeschmich', password: 'TestPasswort123' })).statusCode).toBe(401);
+  });
+
+  it('Letzter aktiver Administrator kann sich nicht selbst löschen', async () => {
+    const admins = await env.db.user.findMany({ where: { role: 'ADMIN', disabledAt: null, id: { not: admin.id } } });
+    for (const a of admins) await env.db.user.update({ where: { id: a.id }, data: { role: 'USER' } });
+    const res = await env.app.inject({ method: 'DELETE', url: `${API}/me`, headers: admin.auth, payload: { password: 'TestPasswort123' } });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('LAST_ADMIN');
+  });
+
+  it('Administrator löscht andere Konten; normale Benutzer dürfen das nicht', async () => {
+    const victim = await makeUser(env, 'opfer');
+    expect((await send('DELETE', `/admin/users/${victim.id}`, alice.auth)).statusCode).toBe(403);
+    const res = await send('DELETE', `/admin/users/${victim.id}`, admin.auth);
+    expect(res.statusCode, res.body).toBe(200);
+    expect(await env.db.user.count({ where: { id: victim.id } })).toBe(0);
+    expect((await get('/me', victim.auth)).statusCode).toBe(401);
+    expect((await send('DELETE', `/admin/users/${admin.id}`, admin.auth)).statusCode).toBe(400);
+    expect((await send('DELETE', `/admin/users/${victim.id}`, admin.auth)).statusCode).toBe(404);
+  });
+});

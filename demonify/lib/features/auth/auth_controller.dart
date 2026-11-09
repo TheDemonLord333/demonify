@@ -96,6 +96,22 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     state = const AsyncData(null);
   }
 
+  /// Schritt 1: Eigenes Konto auf dem Server endgültig löschen (Passwort zur Bestätigung).
+  /// Die Sitzung bleibt lokal noch bestehen, damit der Aufrufer die lokalen Daten
+  /// dieses Kontos (Downloads, Warteschlange, Einstellungen) entfernen kann.
+  Future<void> deleteAccountOnServer(String password) async {
+    final current = state.value;
+    if (current == null) return;
+    await current.api.delete('me', {'password': password});
+  }
+
+  /// Schritt 2: Nach dem Aufräumen lokal abmelden.
+  Future<void> finishDeletedAccount() async {
+    state.value?.api.close();
+    await _store.clear();
+    state = const AsyncData(null);
+  }
+
   static String _deviceName() {
     final os = Platform.operatingSystem;
     final name = switch (os) {

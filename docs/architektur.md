@@ -97,6 +97,17 @@ und media_kit. Entscheidung: **FFmpeg-Filter `equalizer` in libmpv**. Die media_
 Einschränkung: Die Wirksamkeit auf echten Android-/iOS-Geräten konnte in der Entwicklungsumgebung nicht gehört werden
 (keine Geräte/SDKs); geprüft wurden Filtersyntax (FFmpeg), Build-Konfiguration der Bibliotheken und die App-Logik per Tests.
 
+## Konten löschen
+
+- **Selbst:** App → Einstellungen → „Konto löschen“ (Passwort zur Bestätigung, `DELETE /api/v1/me`).
+- **Administratoren:** Verwaltungswebseite → Benutzer → „Löschen“ bzw. App → Verwaltung → Benutzer → Menü → „Konto löschen“ (`DELETE /api/v1/admin/users/:id`).
+- Gelöscht werden Konto, Sitzungen, Playlists, Lieblingssongs, gespeicherte Veröffentlichungen, gefolgte Künstler,
+  Hörverlauf, Einstellungen, vom Konto erstellte Einladungen und offene Uploads. Die Musikbibliothek bleibt unverändert.
+- Das letzte aktive Administratorkonto kann nicht gelöscht werden (`409 LAST_ADMIN`); das eigene Konto löschen
+  Administratoren über die App-Einstellungen, nicht über die Benutzerverwaltung.
+- Bei der Selbstlöschung entfernt die App zusätzlich Downloads, Warteschlange und Einstellungen dieses Kontos vom Gerät.
+  Andere Geräte des Kontos werden beim nächsten Online-Kontakt abgemeldet; dortige Downloads bleiben bis zum Löschen/Deinstallieren.
+
 ## Offline-Downloads und Grenzen
 
 Downloads liegen im privaten App-Speicher (`Application Support/users/<Benutzer-ID>/downloads`), getrennt pro Benutzer;

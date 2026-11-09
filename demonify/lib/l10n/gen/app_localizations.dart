@@ -1754,6 +1754,66 @@ abstract class S {
   /// In de, this message translates to:
   /// **'Deine Playlists'**
   String get yourPlaylists;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto löschen'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto und persönliche Daten endgültig entfernen'**
+  String get deleteAccountSubtitle;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto endgültig löschen?'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @deleteAccountMessage.
+  ///
+  /// In de, this message translates to:
+  /// **'Dein Konto wird auf dem Server gelöscht – mit allen Playlists, Lieblingssongs, gespeicherten Veröffentlichungen, gefolgten Künstlern, dem Hörverlauf und deinen Einstellungen. Auch deine Downloads auf diesem Gerät werden entfernt. Die Musikbibliothek selbst bleibt erhalten. Das kann nicht rückgängig gemacht werden.'**
+  String get deleteAccountMessage;
+
+  /// No description provided for @deleteAccountPassword.
+  ///
+  /// In de, this message translates to:
+  /// **'Passwort zur Bestätigung'**
+  String get deleteAccountPassword;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In de, this message translates to:
+  /// **'Endgültig löschen'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @deleteAccountBusy.
+  ///
+  /// In de, this message translates to:
+  /// **'Wird gelöscht …'**
+  String get deleteAccountBusy;
+
+  /// No description provided for @adminDeleteUser.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto löschen'**
+  String get adminDeleteUser;
+
+  /// No description provided for @adminDeleteUserTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto löschen?'**
+  String get adminDeleteUserTitle;
+
+  /// No description provided for @adminDeleteUserMessage.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto „{name}“ endgültig löschen? Playlists, Lieblingssongs, Hörverlauf und Einstellungen dieses Kontos werden entfernt. Die Musikbibliothek bleibt erhalten. Das kann nicht rückgängig gemacht werden.'**
+  String adminDeleteUserMessage(String name);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
