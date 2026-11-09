@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/network/api_exception.dart';
+import '../../core/storage/providers.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/l10n.dart';
@@ -58,6 +61,13 @@ class SettingsScreen extends ConsumerWidget {
             title: Text(s.logout, style: const TextStyle(color: DColors.danger)),
             onTap: () => confirmLogout(context, ref),
           ),
+          if (session?.offline != true)
+            ListTile(
+              leading: const Icon(Icons.person_remove_rounded, color: DColors.danger),
+              title: Text(s.deleteAccount, style: const TextStyle(color: DColors.danger)),
+              subtitle: Text(s.deleteAccountSubtitle),
+              onTap: () => confirmDeleteAccount(context, ref),
+            ),
           _Header(s.settingsPlayback),
           ListTile(
             leading: const Icon(Icons.wifi_rounded),
@@ -128,6 +138,82 @@ class _Header extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(DSpacing.l, DSpacing.xl, DSpacing.l, DSpacing.s),
         child: Text(text, style: const TextStyle(color: DColors.primaryHover, fontWeight: FontWeight.w700)),
       );
+}
+
+/// Konto endgültig löschen: Erklärung + Passwortbestätigung; danach lokale Daten dieses Kontos entfernen
+Future<void> confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final s = context.s;
+  final pw = TextEditingController();
+  String? error;
+  var busy = false;
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (c) => StatefulBuilder(
+      builder: (c, setState) => AlertDialog(
+        title: Text(s.deleteAccountTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s.deleteAccountMessage),
+              const SizedBox(height: DSpacing.l),
+              TextField(
+                controller: pw,
+                obscureText: true,
+                autofocus: true,
+                autofillHints: const [AutofillHints.password],
+                decoration: InputDecoration(labelText: s.deleteAccountPassword, errorText: error),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: busy ? null : () => Navigator.pop(c), child: Text(s.cancel)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: DColors.danger),
+            onPressed: busy
+                ? null
+                : () async {
+                    if (pw.text.isEmpty) {
+                      setState(() => error = s.fieldRequired);
+                      return;
+                    }
+                    setState(() {
+                      busy = true;
+                      error = null;
+                    });
+                    try {
+                      final auth = ref.read(authProvider.notifier);
+                      final userId = ref.read(currentUserProvider)?.id;
+                      await auth.deleteAccountOnServer(pw.text);
+                      // Konto existiert nicht mehr → lokale Daten dieses Kontos entfernen
+                      await ref.read(playerProvider).clear();
+                      await ref.read(downloadsProvider.notifier).removeAll();
+                      await ref.read(coverCacheProvider)?.clearCache();
+                      if (userId != null) {
+                        final prefs = await SharedPreferences.getInstance();
+                        for (final k in ['player.$userId', 'eq.$userId', 'settings.$userId', 'history.pending.$userId']) {
+                          await prefs.remove(k);
+                        }
+                      }
+                      // Dialog schließen, bevor der Router zur Anmeldung wechselt
+                      if (c.mounted) Navigator.pop(c);
+                      await auth.finishDeletedAccount();
+                    } catch (e) {
+                      setState(() {
+                        busy = false;
+                        error = errorText(e);
+                      });
+                    }
+                  },
+            child: Text(busy ? s.deleteAccountBusy : s.deleteAccountConfirm),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Abmelden mit Angebot, die Downloads dieses Benutzers zu entfernen

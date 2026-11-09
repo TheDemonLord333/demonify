@@ -919,4 +919,38 @@ class SDe extends S {
 
   @override
   String get yourPlaylists => 'Deine Playlists';
+
+  @override
+  String get deleteAccount => 'Konto löschen';
+
+  @override
+  String get deleteAccountSubtitle =>
+      'Konto und persönliche Daten endgültig entfernen';
+
+  @override
+  String get deleteAccountTitle => 'Konto endgültig löschen?';
+
+  @override
+  String get deleteAccountMessage =>
+      'Dein Konto wird auf dem Server gelöscht – mit allen Playlists, Lieblingssongs, gespeicherten Veröffentlichungen, gefolgten Künstlern, dem Hörverlauf und deinen Einstellungen. Auch deine Downloads auf diesem Gerät werden entfernt. Die Musikbibliothek selbst bleibt erhalten. Das kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get deleteAccountPassword => 'Passwort zur Bestätigung';
+
+  @override
+  String get deleteAccountConfirm => 'Endgültig löschen';
+
+  @override
+  String get deleteAccountBusy => 'Wird gelöscht …';
+
+  @override
+  String get adminDeleteUser => 'Konto löschen';
+
+  @override
+  String get adminDeleteUserTitle => 'Konto löschen?';
+
+  @override
+  String adminDeleteUserMessage(String name) {
+    return 'Konto „$name“ endgültig löschen? Playlists, Lieblingssongs, Hörverlauf und Einstellungen dieses Kontos werden entfernt. Die Musikbibliothek bleibt erhalten. Das kann nicht rückgängig gemacht werden.';
+  }
 }

@@ -101,6 +101,29 @@ export function UsersPage() {
                       Abmelden
                     </button>
                     <ResetPassword user={u} onError={setError} />
+                    {u.id !== me?.id && (
+                      <button
+                        className="btn small danger"
+                        onClick={async () => {
+                          if (
+                            !confirm(
+                              `Konto „${u.username}“ endgültig löschen?\n\nPlaylists, Lieblingssongs, Hörverlauf und Einstellungen dieses Kontos werden entfernt. Die Musikbibliothek bleibt erhalten. Das kann nicht rückgängig gemacht werden.`,
+                            )
+                          )
+                            return;
+                          setError(null);
+                          try {
+                            await api(`/admin/users/${u.id}`, { method: 'DELETE' });
+                            users.reload();
+                            invites.reload();
+                          } catch (e) {
+                            setError(errorMessage(e));
+                          }
+                        }}
+                      >
+                        Löschen
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

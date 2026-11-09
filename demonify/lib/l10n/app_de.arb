@@ -408,5 +408,22 @@
   "upNext": "Als Nächstes",
   "username": "Benutzername",
   "usernameRules": "3–32 Zeichen: Buchstaben, Ziffern, Punkt, Unter- und Bindestrich.",
-  "yourPlaylists": "Deine Playlists"
+  "yourPlaylists": "Deine Playlists",
+  "deleteAccount": "Konto löschen",
+  "deleteAccountSubtitle": "Konto und persönliche Daten endgültig entfernen",
+  "deleteAccountTitle": "Konto endgültig löschen?",
+  "deleteAccountMessage": "Dein Konto wird auf dem Server gelöscht – mit allen Playlists, Lieblingssongs, gespeicherten Veröffentlichungen, gefolgten Künstlern, dem Hörverlauf und deinen Einstellungen. Auch deine Downloads auf diesem Gerät werden entfernt. Die Musikbibliothek selbst bleibt erhalten. Das kann nicht rückgängig gemacht werden.",
+  "deleteAccountPassword": "Passwort zur Bestätigung",
+  "deleteAccountConfirm": "Endgültig löschen",
+  "deleteAccountBusy": "Wird gelöscht …",
+  "adminDeleteUser": "Konto löschen",
+  "adminDeleteUserTitle": "Konto löschen?",
+  "adminDeleteUserMessage": "Konto „{name}“ endgültig löschen? Playlists, Lieblingssongs, Hörverlauf und Einstellungen dieses Kontos werden entfernt. Die Musikbibliothek bleibt erhalten. Das kann nicht rückgängig gemacht werden.",
+  "@adminDeleteUserMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

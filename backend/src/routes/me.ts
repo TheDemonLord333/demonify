@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { authOf } from '../plugins/auth.js';
-import { hashPassword, toUserDto, validatePassword, verifyPassword } from '../services/auth.js';
+import { deleteUserAccount, hashPassword, toUserDto, validatePassword, verifyPassword } from '../services/auth.js';
+import { COOKIE_ACCESS, COOKIE_CSRF, COOKIE_REFRESH } from '../plugins/auth.js';
 import { ApiError, notFound } from '../lib/errors.js';
 import type { Prisma } from '../db.js';
 
@@ -42,6 +43,28 @@ export default async function meRoutes(fastify: FastifyInstance) {
         where: { userId: user.id, revokedAt: null, id: { not: auth.sessionId } },
         data: { revokedAt: new Date(), revokeReason: 'password_changed' },
       });
+      return { ok: true };
+    },
+  );
+
+  /** Eigenes Konto löschen – Bestätigung mit dem aktuellen Passwort */
+  app.delete(
+    '/',
+    {
+      config: { rateLimit: { max: 5, timeWindow: '5 minutes' } },
+      schema: { tags: ['Konto'], body: z.object({ password: z.string().min(1).max(256) }) },
+    },
+    async (req, reply) => {
+      const auth = authOf(req);
+      const user = await app.db.user.findUniqueOrThrow({ where: { id: auth.userId } });
+      if (!(await verifyPassword(user.passwordHash, req.body.password))) {
+        throw new ApiError(400, 'WRONG_PASSWORD', 'Das Passwort ist falsch.');
+      }
+      await deleteUserAccount(app.db, user.id);
+      req.log.info({ userId: user.id }, 'Konto vom Benutzer gelöscht');
+      reply.clearCookie(COOKIE_ACCESS, { path: '/api/' });
+      reply.clearCookie(COOKIE_REFRESH, { path: '/api/v1/auth/' });
+      reply.clearCookie(COOKIE_CSRF, { path: '/' });
       return { ok: true };
     },
   );

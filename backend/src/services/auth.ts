@@ -156,6 +156,29 @@ export async function createUser(
   });
 }
 
+/**
+ * Konto endgültig löschen. Entfernt per Kaskade Sitzungen, Refresh-Tokens, Playlists, Lieblingssongs,
+ * gespeicherte Veröffentlichungen, gefolgte Künstler, Hörverlauf, Einstellungen und offene Uploads.
+ * Die Musikbibliothek (Künstler, Veröffentlichungen, Dateien) bleibt unverändert.
+ * Das letzte aktive Administratorkonto kann nicht gelöscht werden.
+ */
+export async function deleteUserAccount(db: Db, userId: string) {
+  return db.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ApiError(404, 'NOT_FOUND', 'Benutzer nicht gefunden.');
+    if (user.role === 'ADMIN' && !user.disabledAt) {
+      // Sperre gegen gleichzeitiges Löschen mehrerer Admins
+      await tx.$queryRaw`SELECT id FROM "User" WHERE role = 'ADMIN' FOR UPDATE`;
+      const others = await tx.user.count({ where: { role: 'ADMIN', disabledAt: null, id: { not: userId } } });
+      if (others === 0) {
+        throw new ApiError(409, 'LAST_ADMIN', 'Das letzte aktive Administratorkonto kann nicht gelöscht werden. Lege zuerst einen weiteren Administrator an.');
+      }
+    }
+    await tx.user.delete({ where: { id: userId } });
+    return user;
+  });
+}
+
 export function toUserDto(u: { id: string; username: string; displayName: string | null; role: string; disabledAt: Date | null; createdAt: Date; lastLoginAt: Date | null }) {
   return {
     id: u.id,

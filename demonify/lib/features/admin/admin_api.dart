@@ -70,6 +70,7 @@ class AdminApi {
   Future<List<Map<String, dynamic>>> users() async => ((await api.get('admin/users'))['items'] as List).cast<Map<String, dynamic>>();
   Future<void> createUser(Map<String, dynamic> body) => api.post('admin/users', body);
   Future<void> updateUser(String id, Map<String, dynamic> body) => api.patch('admin/users/$id', body);
+  Future<void> deleteUser(String id) => api.delete('admin/users/$id');
   Future<void> revokeSessions(String id) => api.post('admin/users/$id/revoke-sessions');
   Future<List<Map<String, dynamic>>> invites() async => ((await api.get('admin/invites'))['items'] as List).cast<Map<String, dynamic>>();
   Future<String> createInvite({required String role, required int hours, String? note}) async {

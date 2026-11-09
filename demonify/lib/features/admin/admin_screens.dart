@@ -14,6 +14,7 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/cover_image.dart';
 import '../../core/widgets/media_widgets.dart';
 import '../../l10n/l10n.dart';
+import '../auth/auth_controller.dart';
 import '../catalog/models.dart';
 import 'admin_api.dart';
 import 'artist_picker.dart';
@@ -598,12 +599,31 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         await _admin.updateUser(u['id'] as String, {'disabled': !(u['disabled'] as bool)});
                       case 'revoke':
                         await _admin.revokeSessions(u['id'] as String);
+                      case 'delete':
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: Text(s.adminDeleteUserTitle),
+                            content: Text(s.adminDeleteUserMessage(u['username'] as String)),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(s.cancel)),
+                              FilledButton(
+                                style: FilledButton.styleFrom(backgroundColor: DColors.danger),
+                                onPressed: () => Navigator.pop(c, true),
+                                child: Text(s.delete),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok == true) await _admin.deleteUser(u['id'] as String);
                     }
                   }),
                   itemBuilder: (c) => [
                     PopupMenuItem(value: 'role', child: Text(u['role'] == 'ADMIN' ? s.adminMakeUser : s.adminMakeAdmin)),
                     PopupMenuItem(value: 'disable', child: Text(u['disabled'] == true ? s.adminEnable : s.adminDisable)),
                     PopupMenuItem(value: 'revoke', child: Text(s.adminRevokeSessions)),
+                    if (u['id'] != ref.read(currentUserProvider)?.id)
+                      PopupMenuItem(value: 'delete', child: Text(s.adminDeleteUser, style: const TextStyle(color: DColors.danger))),
                   ],
                 ),
               ),
