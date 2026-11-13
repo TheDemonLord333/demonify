@@ -9,8 +9,8 @@ import { searchText } from '../lib/normalize.js';
 import { findOrCreateArtist, registerImage, storeEmbeddedPicture } from './catalog.js';
 import { parseLocation, isVariousArtists, type ParsedLocation } from './layout.js';
 import type { JobContext } from './jobs.js';
-
-const SCAN_LOCK_KEY = 0x44656d6f; // "Demo"
+import { SCAN_LOCK_KEY } from './scanlock.js';
+import { pruneEmptyReleases, pruneOrphanCacheImages, pruneOrphanScanArtists, removeTracks } from './cleanup.js';
 
 export interface ScanSummary {
   filesSeen: number;
@@ -21,6 +21,15 @@ export interface ScanSummary {
   missing: number;
   restored: number;
   errors: number;
+  /** Tracks, deren Datei nachweislich gelöscht wurde → aus dem Katalog entfernt */
+  removedTracks: number;
+  removedReleases: number;
+  /** Automatisch erkannte Künstler ohne verbleibende Veröffentlichung */
+  removedArtists: number;
+  /** Fehlende Dateien in nicht lesbaren Verzeichnissen → nur „nicht verfügbar“, nicht gelöscht */
+  unconfirmedMissing: number;
+  /** Verzeichnisse, die nicht gelesen werden konnten */
+  unreadableDirs: string[];
   durationMs: number;
 }
 
@@ -29,16 +38,21 @@ interface FoundFile {
   full: string;
 }
 
-async function walk(root: string): Promise<{ audio: FoundFile[]; images: Map<string, string[]> }> {
+async function walk(root: string): Promise<{ audio: FoundFile[]; images: Map<string, string[]>; failedDirs: string[]; rootEntries: number }> {
   const audio: FoundFile[] = [];
   const images = new Map<string, string[]>(); // Ordner (rel) → Bilddateien (Basename)
+  const failedDirs: string[] = []; // nicht lesbare Ordner (rel) → darunter wird nichts als gelöscht gewertet
+  let rootEntries = 0;
   async function rec(dir: string) {
     let entries;
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
+    } catch (e) {
+      if (dir === root) throw new Error(`Musikverzeichnis nicht lesbar: ${(e as Error).message}`);
+      failedDirs.push(toRel(root, dir));
       return;
     }
+    if (dir === root) rootEntries = entries.filter((e) => !e.name.startsWith('.')).length;
     for (const e of entries) {
       if (e.name.startsWith('.')) continue; // versteckt, *.partial, .Trash
       const full = path.join(dir, e.name);
@@ -57,7 +71,12 @@ async function walk(root: string): Promise<{ audio: FoundFile[]; images: Map<str
   }
   await rec(root);
   audio.sort((a, b) => a.rel.localeCompare(b.rel));
-  return { audio, images };
+  return { audio, images, failedDirs, rootEntries };
+}
+
+/** Liegt die Datei unterhalb eines nicht lesbaren Ordners? Dann ist ihr Fehlen nicht bestätigt. */
+export function isUnderFailedDir(relPath: string, failedDirs: string[]): boolean {
+  return failedDirs.some((d) => d === '' || relPath === d || relPath.startsWith(`${d}/`));
 }
 
 function findImage(images: Map<string, string[]>, relDir: string, basenames: string[]): string | null {
@@ -84,9 +103,12 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T, i: number) =
  * Bibliotheksscan (wiederholbar, idempotent):
  * - neue Dateien importieren, geänderte (Größe/mtime) aktualisieren
  * - verschobene Dateien über Inhalts-Fingerabdruck erkennen (keine Duplikate)
- * - fehlende Dateien als nicht verfügbar markieren (Playlists/Hörverlauf bleiben erhalten)
+ * - nachweislich gelöschte Dateien (Ordner vollständig gelesen) aus dem Katalog entfernen; leere
+ *   Veröffentlichungen und automatisch erkannte Künstler ohne Verbindung verschwinden ebenfalls
+ * - Dateien unter nicht lesbaren Ordnern nur als „nicht verfügbar“ markieren (keine Massenlöschung)
  * - manuell gepflegte Metadaten/Cover (metaLocked/coverLocked/imageLocked) nicht überschreiben
  * - fehlerhafte Dateien einzeln als LibraryIssue melden
+ * Bei Abbruch oder Fehler (Exception) findet keine Bereinigung statt.
  */
 export async function runLibraryScan(
   db: Db,
@@ -107,9 +129,19 @@ export async function runLibraryScan(
     await fs.access(config.MUSIC_DIR).catch(() => {
       throw new Error(`Musikverzeichnis nicht erreichbar: ${config.MUSIC_DIR}`);
     });
-    const summary: ScanSummary = { filesSeen: 0, added: 0, updated: 0, moved: 0, unchanged: 0, missing: 0, restored: 0, errors: 0, durationMs: 0 };
-    const { audio, images } = await walk(config.MUSIC_DIR);
+    const startedAt = new Date(started);
+    const summary: ScanSummary = {
+      filesSeen: 0, added: 0, updated: 0, moved: 0, unchanged: 0, missing: 0, restored: 0, errors: 0,
+      removedTracks: 0, removedReleases: 0, removedArtists: 0, unconfirmedMissing: 0, unreadableDirs: [], durationMs: 0,
+    };
+    const { audio, images, failedDirs, rootEntries } = await walk(config.MUSIC_DIR);
     summary.filesSeen = audio.length;
+    summary.unreadableDirs = failedDirs;
+    const knownCount = await db.track.count();
+    if (rootEntries === 0 && knownCount > 0) {
+      // Typisch für einen nicht eingehängten Datenträger: leeres Verzeichnis ≠ alles gelöscht
+      throw new Error(`Musikverzeichnis ${config.MUSIC_DIR} ist leer, im Katalog sind aber ${knownCount} Songs. Scan abgebrochen, nichts gelöscht (Datenträger eingehängt?).`);
+    }
     await opts.progress?.(0, audio.length, 'Dateien werden geprüft …');
 
     const existing = await db.track.findMany({
@@ -186,15 +218,39 @@ export async function runLibraryScan(
       }
     }
 
-    // Phase 3: fehlende Dateien markieren (nicht löschen)
+    if (opts.isCancelled && (await opts.isCancelled())) throw new Error('Scan abgebrochen.');
+
+    // Phase 3: fehlende Dateien. Bestätigt gelöscht (Ordner vollständig gelesen) → aus dem Katalog entfernen;
+    // unter nicht lesbaren Ordnern → nur „nicht verfügbar“ markieren.
+    const deleted: string[] = [];
     for (const t of existing) {
       if (seenPaths.has(t.audioRelPath)) continue;
+      summary.missing++;
+      if (!isUnderFailedDir(t.audioRelPath, failedDirs)) {
+        deleted.push(t.id);
+        continue;
+      }
+      summary.unconfirmedMissing++;
       if (t.available) {
         await db.track.update({ where: { id: t.id }, data: { available: false, missingSince: new Date() } });
       }
-      await reportIssue(db, 'MISSING_FILE', t.audioRelPath, new Error('Audiodatei fehlt im Musikverzeichnis.'), opts.jobId, t.id);
-      summary.missing++;
+      await reportIssue(db, 'MISSING_FILE', t.audioRelPath, new Error('Audiodatei nicht erreichbar (Ordner nicht lesbar).'), opts.jobId, t.id);
     }
+    if (deleted.length) {
+      const res = await removeTracks(db, config, deleted);
+      summary.removedTracks = res.removed;
+      log.info(`Scan: ${res.removed} gelöschte Datei(en) aus dem Katalog entfernt.`);
+    }
+    summary.removedReleases = await pruneEmptyReleases(db, startedAt);
+    try {
+      const names = await pruneOrphanScanArtists(db, startedAt);
+      summary.removedArtists = names.length;
+      if (names.length) log.info(`Scan: automatisch erkannte Künstler ohne Veröffentlichung entfernt: ${names.join(', ')}`);
+    } catch (e) {
+      // z. B. gleichzeitiger Upload verknüpft gerade einen Künstler → beim nächsten Scan erneut
+      log.warn(`Scan: Künstlerbereinigung übersprungen: ${(e as Error).message}`);
+    }
+    await pruneOrphanCacheImages(db, config).catch(() => 0);
 
     // Phase 4: Cover für betroffene Veröffentlichungen, Künstlerbilder
     for (const releaseId of touchedReleases) {

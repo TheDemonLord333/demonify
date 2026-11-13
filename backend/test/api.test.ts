@@ -5,6 +5,8 @@ import crypto from 'node:crypto';
 import { createTestEnv, makeAudio, makePng, makeUser, uploadFileChunked, exists, type TestEnv } from './helpers.js';
 import { signToken } from '../src/lib/tokens.js';
 import { runLibraryScan } from '../src/services/scanner.js';
+import fsp from 'node:fs/promises';
+import { vi } from 'vitest';
 
 let env: TestEnv;
 let admin: Awaited<ReturnType<typeof makeUser>>;
@@ -398,19 +400,21 @@ describe('Bibliotheksscan', () => {
     expect(moved.audioRelPath).toContain('01 - Eins (neu)');
     expect(moved.available).toBe(true);
 
-    // Datei entfernen → nicht verfügbar, Favorit bleibt erhalten
+    // Datei gelöscht (Ordner vollständig gelesen) → Track verschwindet aus dem Katalog, Album bleibt mit dem Rest
     await fs.rename(path.join(dir, '01 - Eins (neu)', 'audio.flac'), path.join(env.root, 'weg.flac'));
     const s4 = await runLibraryScan(env.db, env.config);
     expect(s4.missing).toBe(1);
-    expect((await env.db.track.findUniqueOrThrow({ where: { id: tracks[0]!.id } })).available).toBe(false);
-    expect(await env.db.favoriteTrack.count({ where: { trackId: tracks[0]!.id } })).toBe(1);
-    const issues = await get('/admin/issues?kind=MISSING_FILE', admin.auth);
-    expect(issues.json().items.length).toBeGreaterThanOrEqual(1);
+    expect(s4.removedTracks).toBe(1);
+    expect(await env.db.track.findUnique({ where: { id: tracks[0]!.id } })).toBeNull();
+    expect(await env.db.favoriteTrack.count({ where: { trackId: tracks[0]!.id } })).toBe(0);
+    expect(await env.db.release.findUnique({ where: { id: release.id } })).not.toBeNull();
+    expect(await env.db.track.count({ where: { releaseId: release.id } })).toBe(1);
 
-    // Zurücklegen → wieder verfügbar
+    // Zurücklegen → wird wieder importiert
     await fs.rename(path.join(env.root, 'weg.flac'), path.join(dir, '01 - Eins (neu)', 'audio.flac'));
     const s5 = await runLibraryScan(env.db, env.config);
-    expect(s5.restored).toBe(1);
+    expect(s5.added).toBe(1);
+    expect(await env.db.track.count({ where: { releaseId: release.id } })).toBe(2);
   });
 
   it('überschreibt manuell gepflegte Metadaten nicht', async () => {
@@ -423,6 +427,130 @@ describe('Bibliotheksscan', () => {
     const s = await runLibraryScan(env.db, env.config);
     expect(s.updated).toBe(1);
     expect((await env.db.track.findUniqueOrThrow({ where: { id: t.id } })).title).toBe('Zwei (bearbeitet)');
+  });
+});
+
+describe('Katalogabgleich nach Scan und Künstler löschen', () => {
+  const m = () => env.config.MUSIC_DIR;
+  async function single(artistFolder: string, title: string, tags: Record<string, string>, freq: number) {
+    const dir = path.join(m(), artistFolder, 'Singles', `2025 - ${title}`);
+    await fs.mkdir(dir, { recursive: true });
+    makeAudio(path.join(dir, 'audio.flac'), { freq, tags: { title, ...tags } });
+    return dir;
+  }
+  const artistByName = (name: string) => env.db.artist.findFirst({ where: { name } });
+
+  it('Prüffall Testartist/Execute: Datei weg → Veröffentlichung und automatisch erkannte Künstler verschwinden', async () => {
+    const dir = await single('Testartist', 'Kollabo', { artist: 'Testartist feat. Execute' }, 500);
+    const s1 = await runLibraryScan(env.db, env.config);
+    expect(s1.errors).toBeGreaterThanOrEqual(0);
+    const execute = await artistByName('Execute');
+    const testartist = await artistByName('Testartist');
+    expect(execute?.origin).toBe('SCAN');
+    expect(testartist?.origin).toBe('SCAN');
+    const rel = await env.db.release.findFirstOrThrow({ where: { title: 'Kollabo' } });
+
+    // Gleicher Zustand → gleiches Ergebnis
+    const s2 = await runLibraryScan(env.db, env.config);
+    expect(s2.removedTracks + s2.removedReleases + s2.removedArtists).toBe(0);
+    expect(await artistByName('Execute')).not.toBeNull();
+
+    // Ordner mit der letzten Audiodatei löschen → Veröffentlichung + beide SCAN-Künstler weg
+    await fs.rm(dir, { recursive: true });
+    const s3 = await runLibraryScan(env.db, env.config);
+    expect(s3.removedTracks).toBe(1);
+    expect(s3.removedReleases).toBeGreaterThanOrEqual(1);
+    expect(await env.db.release.findUnique({ where: { id: rel.id } })).toBeNull();
+    expect(await artistByName('Execute')).toBeNull();
+    expect(await artistByName('Testartist')).toBeNull();
+    const s4 = await runLibraryScan(env.db, env.config);
+    expect(s4.removedTracks + s4.removedReleases + s4.removedArtists).toBe(0);
+  });
+
+  it('Mitwirkender Künstler bleibt, solange eine andere Veröffentlichung auf ihn verweist; manuelle Künstler bleiben immer', async () => {
+    const d1 = await single('Testartist', 'Eins mit Gast', { artist: 'Testartist feat. Execute' }, 510);
+    await single('Andere Band', 'Gastauftritt', { artist: 'Andere Band feat. Execute' }, 520);
+    const manual = await send('POST', '/admin/artists', admin.auth, { name: 'Handangelegt' });
+    expect(manual.statusCode).toBe(201);
+    expect((await artistByName('Handangelegt'))?.origin).toBe('MANUAL');
+    await runLibraryScan(env.db, env.config);
+    await fs.rm(d1, { recursive: true });
+    const s = await runLibraryScan(env.db, env.config);
+    expect(s.removedTracks).toBe(1);
+    expect(await artistByName('Execute')).not.toBeNull(); // noch auf „Gastauftritt“
+    expect(await artistByName('Testartist')).toBeNull();
+    expect(await artistByName('Handangelegt')).not.toBeNull();
+  });
+
+  it('nicht lesbarer Ordner oder leeres Musikverzeichnis lösen keine Löschung aus', async () => {
+    const before = await env.db.track.count();
+    expect(before).toBeGreaterThan(0);
+    const underBand = await env.db.track.count({ where: { audioRelPath: { startsWith: 'Andere Band/' } } });
+    expect(underBand).toBeGreaterThanOrEqual(1);
+    // Ein Unterordner kann nicht gelesen werden → darunter nichts löschen, nur „nicht verfügbar“
+    const real = fsp.readdir.bind(fsp);
+    const spy = vi.spyOn(fsp, 'readdir').mockImplementation((async (p: unknown, o: unknown) => {
+      if (String(p).endsWith(`${path.sep}Andere Band`)) throw Object.assign(new Error('EIO: Ein-/Ausgabefehler'), { code: 'EIO' });
+      return real(p as string, o as never);
+    }) as never);
+    try {
+      const s = await runLibraryScan(env.db, env.config);
+      expect(s.unreadableDirs).toContain('Andere Band');
+      expect(s.unconfirmedMissing).toBe(underBand);
+      expect(s.removedTracks).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await env.db.track.count()).toBe(before);
+    const gast = await env.db.track.findFirstOrThrow({ where: { title: 'Gastauftritt' } });
+    expect(gast.available).toBe(false);
+    // Wieder lesbar → wieder verfügbar
+    const s2 = await runLibraryScan(env.db, env.config);
+    expect(s2.restored).toBe(underBand);
+
+    // Leeres Musikverzeichnis (z. B. Datenträger nicht eingehängt) → Scan schlägt fehl, nichts gelöscht
+    const away = path.join(env.root, 'music-weg');
+    await fs.rename(m(), away);
+    await fs.mkdir(m());
+    await expect(runLibraryScan(env.db, env.config)).rejects.toThrow(/leer/);
+    expect(await env.db.track.count()).toBe(before);
+    await fs.rm(m(), { recursive: true });
+    await fs.rename(away, m());
+  });
+
+  it('Künstler löschen: eigene Veröffentlichungen → Papierkorb, Gastauftritte bleiben, nichts kehrt beim Scan zurück', async () => {
+    const own = await single('Execute', 'Eigene Single', { artist: 'Execute' }, 530);
+    const coop = await single('Testartist', 'Mit Execute', { artist: 'Testartist feat. Execute' }, 540);
+    await runLibraryScan(env.db, env.config);
+    const execute = (await artistByName('Execute'))!;
+    await send('PUT', `/library/artists/${execute.id}`, alice.auth);
+
+    const preview = await get(`/admin/artists/${execute.id}/delete-preview`, admin.auth);
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json()).toMatchObject({ ownReleases: 1, ownTracks: 1, otherReleases: 2 });
+
+    expect((await send('DELETE', `/admin/artists/${execute.id}`, alice.auth)).statusCode).toBe(403);
+    const del = await send('DELETE', `/admin/artists/${execute.id}`, admin.auth);
+    expect(del.statusCode).toBe(200);
+    expect(del.json()).toMatchObject({ removedReleases: 1, removedTracks: 1, movedFiles: 1 });
+    expect(await artistByName('Execute')).toBeNull();
+    expect(await env.db.release.findFirst({ where: { title: 'Eigene Single' } })).toBeNull();
+    // Eigene Datei liegt im Papierkorb, nicht gelöscht
+    expect(await exists(path.join(own, 'audio.flac'))).toBe(false);
+    expect(await exists(path.join(m(), del.json().trashFolder, 'Execute', 'Singles', '2025 - Eigene Single', 'audio.flac'))).toBe(true);
+    // Gemeinsame Veröffentlichung bleibt verfügbar, Testartist bleibt Hauptkünstler
+    const coopTrack = await env.db.track.findFirstOrThrow({ where: { title: 'Mit Execute' }, include: { artists: { include: { artist: true } } } });
+    expect(coopTrack.available).toBe(true);
+    expect(coopTrack.artists.map((a) => a.artist.name)).toEqual(['Testartist']);
+    expect(await exists(path.join(coop, 'audio.flac'))).toBe(true);
+
+    // Nächster Scan: nichts kehrt zurück, nichts wird zusätzlich gelöscht
+    const s = await runLibraryScan(env.db, env.config);
+    expect(s.added).toBe(0);
+    expect(s.removedTracks).toBe(0);
+    expect(await artistByName('Execute')).toBeNull();
+    expect(await env.db.track.findFirst({ where: { title: 'Mit Execute' } })).not.toBeNull();
+    expect((await get('/admin/artists/00000000-0000-4000-8000-000000000000/delete-preview', admin.auth)).statusCode).toBe(404);
   });
 });
 
