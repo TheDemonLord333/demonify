@@ -4,7 +4,18 @@ import { z } from 'zod';
 import { authOf } from '../../plugins/auth.js';
 import { ApiError, badRequest, notFound } from '../../lib/errors.js';
 import { randomToken, sha256 } from '../../lib/tokens.js';
-import { createUser, deleteUserAccount, hashPassword, revokeAllSessions, toUserDto, validatePassword } from '../../services/auth.js';
+import {
+  cleanDisplayNameInput,
+  createUser,
+  deleteUserAccount,
+  hashPassword,
+  revokeAllSessions,
+  toUserDto,
+  validatePassword,
+  validateUsername,
+} from '../../services/auth.js';
+import { isUniqueViolation } from '../../lib/errors.js';
+import { pendingEmail } from '../../services/account.js';
 
 export default async function adminUserRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -23,7 +34,13 @@ export default async function adminUserRoutes(fastify: FastifyInstance) {
       _count: { _all: true },
     });
     const counts = new Map(sessions.map((s) => [s.userId, s._count._all]));
-    return { items: users.map((u) => ({ ...toUserDto(u), activeSessions: counts.get(u.id) ?? 0 })) };
+    const pending = await app.db.emailToken.findMany({
+      where: { kind: 'VERIFY_EMAIL', usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'asc' },
+      select: { userId: true, email: true },
+    });
+    const pendingBy = new Map(pending.map((p) => [p.userId, p.email]));
+    return { items: users.map((u) => ({ ...toUserDto(u), pendingEmail: pendingBy.get(u.id) ?? null, activeSessions: counts.get(u.id) ?? 0 })) };
   });
 
   app.post(
@@ -36,11 +53,14 @@ export default async function adminUserRoutes(fastify: FastifyInstance) {
           password: z.string().min(10).max(256),
           role: z.enum(['ADMIN', 'USER']).default('USER'),
           displayName: z.string().max(64).optional(),
+          /** Startpasswort → erste Anmeldung führt durch die Ersteinrichtung (Standard) */
+          requirePasswordChange: z.boolean().default(true),
         }),
       },
     },
     async (req, reply) => {
-      const user = await createUser(app.db, req.body);
+      const { requirePasswordChange, ...input } = req.body;
+      const user = await createUser(app.db, { ...input, mustChangePassword: requirePasswordChange });
       return reply.code(201).send({ user: toUserDto(user) });
     },
   );
@@ -54,8 +74,14 @@ export default async function adminUserRoutes(fastify: FastifyInstance) {
         body: z.object({
           role: z.enum(['ADMIN', 'USER']).optional(),
           disabled: z.boolean().optional(),
-          displayName: z.string().max(64).nullable().optional(),
+          /** Anmeldename (eindeutig) – Konto-ID, Bibliothek, Playlists und Favoriten bleiben unverändert */
+          username: z.string().min(1).max(64).optional(),
+          /** Anzeigename (nur Darstellung) */
+          displayName: z.string().max(200).nullable().optional(),
+          /** Manueller Reset: neues Startpasswort */
           password: z.string().min(10).max(256).optional(),
+          /** Beim manuellen Reset Passwortwechsel bei der nächsten Anmeldung verlangen (Standard) */
+          requirePasswordChange: z.boolean().default(true),
         }),
       },
     },
@@ -63,22 +89,36 @@ export default async function adminUserRoutes(fastify: FastifyInstance) {
       const self = authOf(req).userId;
       const user = await app.db.user.findUnique({ where: { id: req.params.id } });
       if (!user) throw notFound('Benutzer nicht gefunden.');
-      const { role, disabled, displayName, password } = req.body;
+      const { role, disabled, displayName, password, requirePasswordChange } = req.body;
+      let usernameData: { username: string; usernameKey: string } | undefined;
+      if (req.body.username !== undefined) {
+        const { username, key } = validateUsername(req.body.username);
+        const other = await app.db.user.findUnique({ where: { usernameKey: key } });
+        if (other && other.id !== user.id) throw new ApiError(409, 'USERNAME_TAKEN', 'Dieser Anmeldename ist bereits vergeben.');
+        usernameData = { username, usernameKey: key };
+      }
       if ((role === 'USER' || disabled === true) && user.role === 'ADMIN') await ensureAnotherAdmin(user.id);
       if (user.id === self && disabled === true) throw badRequest('Das eigene Konto kann nicht gesperrt werden.');
       if (password) validatePassword(password);
-      const updated = await app.db.user.update({
-        where: { id: user.id },
-        data: {
-          role,
-          displayName: displayName === undefined ? undefined : displayName?.trim() || null,
-          disabledAt: disabled === undefined ? undefined : disabled ? new Date() : null,
-          passwordHash: password ? await hashPassword(password) : undefined,
-        },
-      });
+      const updated = await app.db.user
+        .update({
+          where: { id: user.id },
+          data: {
+            role,
+            ...usernameData,
+            displayName: displayName === undefined ? undefined : cleanDisplayNameInput(displayName),
+            disabledAt: disabled === undefined ? undefined : disabled ? new Date() : null,
+            passwordHash: password ? await hashPassword(password) : undefined,
+            mustChangePassword: password ? requirePasswordChange : undefined,
+          },
+        })
+        .catch((e) => {
+          if (isUniqueViolation(e)) throw new ApiError(409, 'USERNAME_TAKEN', 'Dieser Anmeldename ist bereits vergeben.');
+          throw e;
+        });
       // Sperren oder Passwortänderung beendet alle Sitzungen sofort
       if (disabled === true || password) await revokeAllSessions(app.db, user.id, disabled ? 'disabled' : 'password_reset');
-      return { user: toUserDto(updated) };
+      return { user: { ...toUserDto(updated), pendingEmail: await pendingEmail(app.db, updated.id) } };
     },
   );
 

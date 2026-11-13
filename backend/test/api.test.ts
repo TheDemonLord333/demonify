@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { createTestEnv, makeAudio, makePng, makeUser, uploadFileChunked, exists, type TestEnv } from './helpers.js';
+import { createTestEnv, makeAudio, makePng, makeUser, uploadFileChunked, exists, waitFor, tokenFromMail, type TestEnv } from './helpers.js';
 import { signToken } from '../src/lib/tokens.js';
 import { runLibraryScan } from '../src/services/scanner.js';
 import fsp from 'node:fs/promises';
@@ -120,9 +120,16 @@ describe('Authentifizierung', () => {
     const inv = await send('POST', '/admin/invites', admin.auth, { role: 'USER', expiresInHours: 1 });
     expect(inv.statusCode).toBe(201);
     const { code } = inv.json() as { code: string };
-    const r1 = await send('POST', '/auth/invites/redeem', {}, { code, username: 'eingeladen', password: 'EinPasswort123' });
+    // Mit eingerichtetem Mailversand: Anzeigename und E-Mail sind Pflicht
+    const r0 = await send('POST', '/auth/invites/redeem', {}, { code, username: 'eingeladen', password: 'EinPasswort123' });
+    expect(r0.json().error.code).toBe('EMAIL_REQUIRED');
+    const sentBefore = env.app.mailer.sent.length;
+    const r1 = await send('POST', '/auth/invites/redeem', {}, { code, username: 'eingeladen', password: 'EinPasswort123', displayName: 'Eingeladen', email: 'Eingeladen@Example.org' });
     expect(r1.statusCode).toBe(200);
-    const r2 = await send('POST', '/auth/invites/redeem', {}, { code, username: 'nochmal', password: 'EinPasswort123' });
+    expect(r1.json().emailSent).toBe(true);
+    expect(env.app.mailer.sent.length).toBe(sentBefore + 1);
+    expect(env.app.mailer.sent.at(-1)!.to).toBe('Eingeladen@Example.org');
+    const r2 = await send('POST', '/auth/invites/redeem', {}, { code, username: 'nochmal', password: 'EinPasswort123', displayName: 'X', email: 'x@example.org' });
     expect(r2.statusCode).toBe(410);
   });
 });
@@ -635,6 +642,178 @@ describe('Private Nutzerdaten', () => {
     expect(homeA.recentlyPlayed.map((t: { id: string }) => t.id)).toContain(tracks[2]!.id);
     expect(homeB.recentlyPlayed).toHaveLength(0);
     expect(homeA.newReleases.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Ersteinrichtung, E-Mail und Passwort vergessen', () => {
+  const login = (identifier: string, password: string) => send('POST', '/auth/login', {}, { identifier, password });
+  const mails = () => env.app.mailer.sent;
+  async function verifiedUser(username: string, email: string, password = 'TestPasswort123') {
+    const u = await makeUser(env, username, 'USER', password);
+    const before = mails().length;
+    const r = await send('POST', '/me/email', u.auth, { email, password });
+    expect(r.statusCode).toBe(200);
+    expect(mails().length).toBe(before + 1);
+    const c = await send('POST', '/auth/email/confirm', {}, { token: tokenFromMail(mails().at(-1)!.text) });
+    expect(c.statusCode).toBe(200);
+    return u;
+  }
+
+  it('Startpasswort: Server erzwingt den Wechsel, altes Passwort ist danach ungültig', async () => {
+    const created = await send('POST', '/admin/users', admin.auth, { username: 'neuling', password: 'StartPasswort1' });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().user.mustChangePassword).toBe(true);
+    const l = await login('neuling', 'StartPasswort1');
+    expect(l.statusCode).toBe(200);
+    expect(l.json().user.mustChangePassword).toBe(true);
+    expect(l.json().setup.emailRequired).toBe(true);
+    const auth = { authorization: `Bearer ${l.json().accessToken}` };
+    const blocked = await get('/library/favorites', auth);
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error.code).toBe('PASSWORD_CHANGE_REQUIRED');
+    expect((await send('POST', '/me/email', auth, { email: 'n@example.org', password: 'StartPasswort1' })).statusCode).toBe(403);
+    expect((await get('/me', auth)).statusCode).toBe(200);
+
+    const same = await send('POST', '/me/setup', auth, { displayName: 'Neu Ling', currentPassword: 'StartPasswort1', newPassword: 'StartPasswort1' });
+    expect(same.json().error.code).toBe('SAME_PASSWORD');
+    const noName = await send('POST', '/me/setup', auth, { displayName: '   ', currentPassword: 'StartPasswort1', newPassword: 'EigenesPasswort1' });
+    expect(noName.json().error.code).toBe('DISPLAY_NAME_REQUIRED');
+    const wrong = await send('POST', '/me/setup', auth, { displayName: 'Neu Ling', currentPassword: 'falsch', newPassword: 'EigenesPasswort1' });
+    expect(wrong.json().error.code).toBe('WRONG_PASSWORD');
+    const ok = await send('POST', '/me/setup', auth, { displayName: 'Neu Ling', currentPassword: 'StartPasswort1', newPassword: 'EigenesPasswort1' });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json().user).toMatchObject({ mustChangePassword: false, displayName: 'Neu Ling' });
+    expect((await get('/library/favorites', auth)).statusCode).toBe(200);
+    expect((await login('neuling', 'StartPasswort1')).statusCode).toBe(401);
+    expect((await login('neuling', 'EigenesPasswort1')).statusCode).toBe(200);
+  });
+
+  it('bestehendes Konto ohne E-Mail meldet sich weiter per Anmeldename an und trägt die Adresse nach', async () => {
+    const u = await makeUser(env, 'altkonto');
+    const me = await get('/me', u.auth);
+    expect(me.json().user).toMatchObject({ email: null, emailVerified: false, mustChangePassword: false });
+    expect(me.json().setup).toMatchObject({ emailRequired: true, pendingEmail: null });
+    expect((await send('POST', '/me/email', u.auth, { email: 'alt@example.org', password: 'falsch' })).json().error.code).toBe('WRONG_PASSWORD');
+    expect((await send('POST', '/me/email', u.auth, { email: 'keine-adresse', password: 'TestPasswort123' })).statusCode).toBe(400);
+    const r = await send('POST', '/me/email', u.auth, { email: '  Alt@Example.ORG ', password: 'TestPasswort123' });
+    expect(r.statusCode).toBe(200);
+    expect((await get('/me', u.auth)).json().setup.pendingEmail).toBe('Alt@Example.ORG');
+    // Vor der Bestätigung: Anmeldung per E-Mail nicht möglich
+    expect((await login('alt@example.org', 'TestPasswort123')).statusCode).toBe(401);
+    const token = tokenFromMail(mails().at(-1)!.text);
+    expect((await send('POST', '/auth/tokens/check', {}, { token, kind: 'VERIFY_EMAIL' })).json()).toMatchObject({ valid: true });
+    const c = await send('POST', '/auth/email/confirm', {}, { token });
+    expect(c.statusCode).toBe(200);
+    expect((await send('POST', '/auth/email/confirm', {}, { token })).statusCode).toBe(410);
+    // Beide Eingaben funktionieren, mit derselben Normalisierung
+    expect((await login('ALT@example.org ', 'TestPasswort123')).statusCode).toBe(200);
+    expect((await login('AltKonto', 'TestPasswort123')).statusCode).toBe(200);
+    expect((await send('POST', '/auth/login', {}, { username: 'altkonto', password: 'TestPasswort123' })).statusCode).toBe(200);
+    expect((await login('alt@example.org', 'falsch')).json().error.code).toBe('INVALID_CREDENTIALS');
+    // Eindeutigkeit: andere Konten können die Adresse nicht verwenden
+    const other = await makeUser(env, 'zweitkonto');
+    const dup = await send('POST', '/me/email', other.auth, { email: 'alt@EXAMPLE.org', password: 'TestPasswort123' });
+    expect(dup.json().error.code).toBe('EMAIL_TAKEN');
+    // Anmeldenamen mit @ sind nicht erlaubt → gemeinsames Feld bleibt eindeutig
+    expect((await send('POST', '/admin/users', admin.auth, { username: 'a@b.de', password: 'StartPasswort1' })).statusCode).toBe(400);
+  });
+
+  it('Passwort vergessen: neutrale Antwort, Link nur an bestätigte Adresse, Einmal-Token, Sitzungen beendet', async () => {
+    const u = await verifiedUser('vergesslich', 'vergesslich@example.org');
+    const unverified = await makeUser(env, 'unbestaetigt');
+    await send('POST', '/me/email', unverified.auth, { email: 'offen@example.org', password: 'TestPasswort123' });
+
+    const count = mails().length;
+    const answers = [];
+    for (const identifier of ['gibtsnicht', 'niemand@example.org', 'unbestaetigt', 'offen@example.org']) {
+      const r = await send('POST', '/auth/password/forgot', {}, { identifier });
+      expect(r.statusCode).toBe(200);
+      answers.push(r.json().message);
+    }
+    await new Promise((r) => setTimeout(r, 150));
+    expect(mails().length).toBe(count); // keine Mail ohne bestätigte Adresse
+
+    const r = await send('POST', '/auth/password/forgot', {}, { identifier: 'VERGESSLICH@example.org' });
+    answers.push(r.json().message);
+    expect(new Set(answers).size).toBe(1); // überall dieselbe Rückmeldung
+    await waitFor(() => mails().length === count + 1);
+    const resetMail = mails().at(-1)!;
+    expect(resetMail.to).toBe('vergesslich@example.org');
+    expect(resetMail.text).toContain('/admin/konto/passwort-zuruecksetzen#token=');
+    const token = tokenFromMail(resetMail.text);
+
+    // Pro Konto begrenzt: direkte Wiederholung erzeugt keine weitere Mail
+    await send('POST', '/auth/password/forgot', {}, { identifier: 'vergesslich' });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(mails().length).toBe(count + 1);
+
+    expect((await send('POST', '/auth/password/reset', {}, { token, password: 'kurz' })).statusCode).toBe(400);
+    // Parallele Einlösung: genau eine Anfrage gewinnt
+    const [a, b] = await Promise.all([
+      send('POST', '/auth/password/reset', {}, { token, password: 'NeuesPasswort123' }),
+      send('POST', '/auth/password/reset', {}, { token, password: 'AnderesPasswort123' }),
+    ]);
+    expect([a.statusCode, b.statusCode].sort()).toEqual([200, 410]);
+    const winner = a.statusCode === 200 ? 'NeuesPasswort123' : 'AnderesPasswort123';
+    expect(mails().at(-1)!.subject).toContain('Passwort geändert');
+    // Bereits verwendet → ungültig; alte Sitzung beendet; altes Passwort ungültig
+    expect((await send('POST', '/auth/password/reset', {}, { token, password: 'NochEinPasswort1' })).json().error.code).toBe('TOKEN_INVALID');
+    expect((await get('/me', u.auth)).statusCode).toBe(401);
+    expect((await login('vergesslich', 'TestPasswort123')).statusCode).toBe(401);
+    expect((await login('vergesslich@example.org', winner)).statusCode).toBe(200);
+  });
+
+  it('abgelaufene Links und weitere offene Links nach einem Reset sind ungültig', async () => {
+    await verifiedUser('zweimal', 'zweimal@example.org');
+    const user = await env.db.user.findFirstOrThrow({ where: { usernameKey: 'zweimal' } });
+    const count = mails().length;
+    await send('POST', '/auth/password/forgot', {}, { identifier: 'zweimal' });
+    await waitFor(() => mails().length === count + 1);
+    const first = tokenFromMail(mails().at(-1)!.text);
+    // Zweiten Link anfordern (Mindestabstand simulieren)
+    await env.db.emailToken.updateMany({ where: { userId: user.id, kind: 'PASSWORD_RESET' }, data: { createdAt: new Date(Date.now() - 120_000) } });
+    await send('POST', '/auth/password/forgot', {}, { identifier: 'zweimal@example.org' });
+    await waitFor(() => mails().length === count + 2);
+    const second = tokenFromMail(mails().at(-1)!.text);
+    expect((await send('POST', '/auth/tokens/check', {}, { token: first, kind: 'PASSWORD_RESET' })).json().valid).toBe(true);
+    expect((await send('POST', '/auth/password/reset', {}, { token: second, password: 'ZweitesPasswort1' })).statusCode).toBe(200);
+    expect((await send('POST', '/auth/password/reset', {}, { token: first, password: 'ErstesPasswort12' })).statusCode).toBe(410);
+
+    // Abgelaufen
+    await env.db.emailToken.updateMany({ where: { userId: user.id }, data: { createdAt: new Date(Date.now() - 7200_000) } });
+    await send('POST', '/auth/password/forgot', {}, { identifier: 'zweimal' });
+    await waitFor(() => mails().length === count + 4); // + Bestätigung „Passwort geändert“
+    const third = tokenFromMail(mails().at(-1)!.text);
+    await env.db.emailToken.updateMany({ where: { tokenHash: { not: '' }, userId: user.id, usedAt: null }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    expect((await send('POST', '/auth/tokens/check', {}, { token: third, kind: 'PASSWORD_RESET' })).json().valid).toBe(false);
+    expect((await send('POST', '/auth/password/reset', {}, { token: third, password: 'DrittesPasswort1' })).statusCode).toBe(410);
+  });
+
+  it('Admin bearbeitet Anmeldename und Anzeigename getrennt; Konto und Bibliothek bleiben gleich', async () => {
+    const u = await makeUser(env, 'umbenennen');
+    const track = await env.db.track.findFirstOrThrow({ where: { available: true } });
+    await send('PUT', `/library/favorites/${track.id}`, u.auth);
+    const r = await send('PATCH', `/admin/users/${u.id}`, admin.auth, { username: 'Umbenannt', displayName: 'Mein Anzeigename' });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().user).toMatchObject({ id: u.id, username: 'Umbenannt', displayName: 'Mein Anzeigename' });
+    expect((await send('PATCH', `/admin/users/${u.id}`, admin.auth, { username: 'ALICE' })).json().error.code).toBe('USERNAME_TAKEN');
+    expect((await send('PATCH', `/admin/users/${u.id}`, admin.auth, { username: 'mit@zeichen' })).statusCode).toBe(400);
+    expect((await login('umbenennen', 'TestPasswort123')).statusCode).toBe(401);
+    const l = await login('umbenannt', 'TestPasswort123');
+    expect(l.statusCode).toBe(200);
+    expect(l.json().user.id).toBe(u.id);
+    const fav = await get('/library/favorites/ids', { authorization: `Bearer ${l.json().accessToken}` });
+    expect(fav.json().ids).toContain(track.id);
+    // Nur Anzeigename ändern lässt den Anmeldenamen unberührt
+    const r2 = await send('PATCH', `/admin/users/${u.id}`, admin.auth, { displayName: null });
+    expect(r2.json().user).toMatchObject({ username: 'Umbenannt', displayName: null });
+    // Nutzer ergänzt den Anzeigenamen selbst
+    const self = await send('PATCH', '/me', { authorization: `Bearer ${l.json().accessToken}` }, { displayName: ' Selbst gewählt ' });
+    expect(self.json().user.displayName).toBe('Selbst gewählt');
+    // Manueller Admin-Reset bleibt als Ausweichweg und verlangt danach einen Wechsel
+    const reset = await send('PATCH', `/admin/users/${u.id}`, admin.auth, { password: 'AdminReset123' });
+    expect(reset.json().user.mustChangePassword).toBe(true);
+    expect((await login('umbenannt', 'AdminReset123')).json().user.mustChangePassword).toBe(true);
   });
 });
 

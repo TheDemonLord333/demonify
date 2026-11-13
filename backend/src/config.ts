@@ -55,6 +55,8 @@ const schema = z.object({
 
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
   LOGIN_RATE_LIMIT_WINDOW: z.string().default('5 minutes'),
+  /** „Passwort vergessen“: Anfragen pro IP und 15 Minuten (pro Konto zusätzlich 3/Stunde) */
+  FORGOT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(5),
 
   MAX_AUDIO_UPLOAD_MB: z.coerce.number().int().min(1).default(2048),
   MAX_IMAGE_UPLOAD_MB: z.coerce.number().int().min(1).default(30),
@@ -68,6 +70,27 @@ const schema = z.object({
   /** Parallel geprüfte Dateien beim Bibliotheksscan */
   SCAN_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
 
+  /**
+   * Mailversand für E-Mail-Bestätigung und „Passwort vergessen“:
+   *   disabled – kein Versand (E-Mail-Pflicht und Passwort-Reset per Mail sind dann aus)
+   *   smtp     – Versand über SMTP (Produktion)
+   *   log      – Mails nur ins Log schreiben (nur Entwicklung; enthält Links mit Token!)
+   *   memory   – im Speicher sammeln (nur automatisierte Tests)
+   */
+  MAIL_TRANSPORT: z.enum(['disabled', 'smtp', 'log', 'memory']).default('disabled'),
+  /** Absender, z. B. "Demonify <noreply@thedemonlord333.me>" */
+  MAIL_FROM: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  /** true = TLS ab Verbindungsaufbau (Port 465); false = STARTTLS (Port 587, wird erzwungen) */
+  SMTP_SECURE: bool.default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  /** Gültigkeit von Passwort-Reset-Links */
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(240).default(30),
+  /** Gültigkeit von Links zur E-Mail-Bestätigung */
+  EMAIL_VERIFY_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+
   OPENAPI_UI: bool.default(true),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   /** Optionale Beispieldaten nur im ausdrücklichen Entwicklungsmodus */
@@ -80,6 +103,8 @@ export type AppConfig = z.infer<typeof schema> & {
   uploadDir: string;
   cacheDir: string;
   cookieSecure: boolean;
+  /** Mailversand eingerichtet → E-Mail-Pflicht und „Passwort vergessen“ aktiv */
+  mailEnabled: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -92,6 +117,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (c.AUTH_TOKEN_SECRET === c.STREAM_URL_SECRET) {
     throw new Error('AUTH_TOKEN_SECRET und STREAM_URL_SECRET müssen unterschiedlich sein.');
   }
+  if (c.MAIL_TRANSPORT === 'smtp' && (!c.SMTP_HOST || !c.MAIL_FROM)) {
+    throw new Error('MAIL_TRANSPORT=smtp benötigt SMTP_HOST und MAIL_FROM.');
+  }
+  if ((c.MAIL_TRANSPORT === 'log' || c.MAIL_TRANSPORT === 'memory') && c.NODE_ENV === 'production') {
+    throw new Error(`MAIL_TRANSPORT=${c.MAIL_TRANSPORT} ist nur für Entwicklung/Tests gedacht (Links mit Token würden im Log landen).`);
+  }
   if (c.DEV_SEED_ENABLED && c.NODE_ENV === 'production') {
     throw new Error('DEV_SEED_ENABLED darf in Produktion nicht aktiv sein.');
   }
@@ -102,5 +133,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     uploadDir: path.resolve(c.UPLOAD_DIR ?? path.join(c.DATA_DIR, 'uploads')),
     cacheDir: path.resolve(c.CACHE_DIR ?? path.join(c.DATA_DIR, 'cache')),
     cookieSecure: c.COOKIE_SECURE ?? c.NODE_ENV === 'production',
+    PUBLIC_BASE_URL: c.PUBLIC_BASE_URL.replace(/\/+$/, ''),
+    mailEnabled: c.MAIL_TRANSPORT !== 'disabled',
   };
 }

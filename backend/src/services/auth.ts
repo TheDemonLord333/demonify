@@ -4,6 +4,7 @@ import type { Db } from '../db.js';
 import { randomToken, sha256, signToken, type AccessPayload } from '../lib/tokens.js';
 import { ApiError, badRequest, unauthorized } from '../lib/errors.js';
 import { cleanDisplayName, usernameKey } from '../lib/normalize.js';
+import { findUserByIdentifier } from './account.js';
 
 /** Argon2id-Parameter (OWASP-Empfehlung: m=19 MiB, t=2 – hier etwas stärker) */
 const ARGON_OPTS = { type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 1 } as const;
@@ -32,12 +33,20 @@ export function validatePassword(pw: string) {
   if (pw.length > 256) throw badRequest('Das Passwort ist zu lang.');
 }
 
+/** Anmeldename: kein „@“ erlaubt → ein gemeinsames Feld „Anmeldename oder E-Mail“ bleibt eindeutig. */
 export function validateUsername(raw: string): { username: string; key: string } {
   const username = cleanDisplayName(raw);
   if (!/^[\p{L}\p{N}._-]{3,32}$/u.test(username)) {
-    throw badRequest('Benutzername: 3–32 Zeichen, nur Buchstaben, Ziffern, Punkt, Unter- und Bindestrich.');
+    throw badRequest('Anmeldename: 3–32 Zeichen, nur Buchstaben, Ziffern, Punkt, Unter- und Bindestrich (kein @).');
   }
   return { username, key: usernameKey(username) };
+}
+
+export function cleanDisplayNameInput(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const v = cleanDisplayName(raw);
+  if (v.length > 64) throw badRequest('Der Anzeigename ist zu lang (max. 64 Zeichen).');
+  return v || null;
 }
 
 export interface IssuedTokens {
@@ -48,14 +57,15 @@ export interface IssuedTokens {
   sessionId: string;
 }
 
-export async function authenticate(db: Db, username: string, password: string) {
-  const user = await db.user.findUnique({ where: { usernameKey: usernameKey(username) } });
+/** Anmeldung mit Anmeldename oder bestätigter E-Mail-Adresse + Passwort */
+export async function authenticate(db: Db, identifier: string, password: string) {
+  const user = await findUserByIdentifier(db, identifier);
   if (!user) {
     await verifyPassword(await getDummyHash(), password);
-    throw unauthorized('Benutzername oder Passwort ist falsch.', 'INVALID_CREDENTIALS');
+    throw unauthorized('Anmeldename/E-Mail oder Passwort ist falsch.', 'INVALID_CREDENTIALS');
   }
   const ok = await verifyPassword(user.passwordHash, password);
-  if (!ok) throw unauthorized('Benutzername oder Passwort ist falsch.', 'INVALID_CREDENTIALS');
+  if (!ok) throw unauthorized('Anmeldename/E-Mail oder Passwort ist falsch.', 'INVALID_CREDENTIALS');
   if (user.disabledAt) throw new ApiError(403, 'ACCOUNT_DISABLED', 'Dieses Konto ist gesperrt.');
   if (argon2.needsRehash(user.passwordHash, ARGON_OPTS)) {
     await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } });
@@ -139,7 +149,7 @@ export async function revokeAllSessions(db: Db, userId: string, reason: string) 
 
 export async function createUser(
   db: Db,
-  input: { username: string; password: string; role: 'ADMIN' | 'USER'; displayName?: string | null },
+  input: { username: string; password: string; role: 'ADMIN' | 'USER'; displayName?: string | null; mustChangePassword?: boolean },
 ) {
   const { username, key } = validateUsername(input.username);
   validatePassword(input.password);
@@ -149,9 +159,10 @@ export async function createUser(
     data: {
       username,
       usernameKey: key,
-      displayName: input.displayName?.trim() || null,
+      displayName: cleanDisplayNameInput(input.displayName),
       passwordHash: await hashPassword(input.password),
       role: input.role,
+      mustChangePassword: input.mustChangePassword ?? false,
     },
   });
 }
@@ -179,11 +190,26 @@ export async function deleteUserAccount(db: Db, userId: string) {
   });
 }
 
-export function toUserDto(u: { id: string; username: string; displayName: string | null; role: string; disabledAt: Date | null; createdAt: Date; lastLoginAt: Date | null }) {
+export function toUserDto(u: {
+  id: string;
+  username: string;
+  displayName: string | null;
+  role: string;
+  disabledAt: Date | null;
+  createdAt: Date;
+  lastLoginAt: Date | null;
+  email: string | null;
+  emailVerifiedAt: Date | null;
+  mustChangePassword: boolean;
+}) {
   return {
     id: u.id,
     username: u.username,
     displayName: u.displayName,
+    email: u.email,
+    emailVerified: u.emailVerifiedAt !== null,
+    /** Startpasswort → Ersteinrichtung mit Passwortwechsel erforderlich (serverseitig erzwungen) */
+    mustChangePassword: u.mustChangePassword,
     role: u.role,
     disabled: u.disabledAt !== null,
     createdAt: u.createdAt.toISOString(),

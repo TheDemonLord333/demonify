@@ -31,6 +31,8 @@ export async function createTestEnv(overrides: Record<string, string> = {}): Pro
     COOKIE_SECURE: 'false',
     WORKER_ENABLED: 'false',
     UPLOAD_CHUNK_MB: '1',
+    MAIL_TRANSPORT: 'memory',
+    FORGOT_RATE_LIMIT_MAX: '100',
     ...overrides,
   });
   await fs.mkdir(config.MUSIC_DIR, { recursive: true });
@@ -115,4 +117,20 @@ export async function exists(p: string) {
     () => true,
     () => false,
   );
+}
+
+/** Wartet, bis eine Bedingung erfüllt ist (für asynchron versendete Mails) */
+export async function waitFor(cond: () => boolean, ms = 3000) {
+  const end = Date.now() + ms;
+  while (!cond()) {
+    if (Date.now() > end) throw new Error('Zeitüberschreitung beim Warten');
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
+/** Token aus einem versendeten Link (#token=…) */
+export function tokenFromMail(text: string): string {
+  const m = text.match(/#token=([^\s]+)/);
+  if (!m) throw new Error('Kein Link in der Mail');
+  return decodeURIComponent(m[1]!);
 }
