@@ -36,4 +36,10 @@ Pfad bzw. Inhalts-Fingerabdruck erkannt, nicht über Titel.
 
 ## Benutzernamen
 
-Gleiche Regeln (`usernameKey`, eindeutig). Erlaubt: 3–32 Zeichen aus Buchstaben, Ziffern, `.`, `_`, `-`.
+Gleiche Regeln (`usernameKey`, eindeutig). Erlaubt: 3–32 Zeichen aus Buchstaben, Ziffern, `.`, `_`, `-` – also nie `@`.
+
+## E-Mail-Adressen
+
+Anzeige: NFKC, unsichtbare Zeichen entfernt, getrimmt. Schlüssel `emailKey`: zusätzlich Kleinschreibung (eindeutig,
+nur bestätigte Adressen). Dieselbe Funktion (`normalizeEmail`) gilt beim Erfassen, Anmelden, Ändern und Zurücksetzen.
+Ein gemeinsames Eingabefeld wird so aufgelöst: enthält es `@` → E-Mail, sonst Anmeldename.
