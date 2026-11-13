@@ -10,6 +10,7 @@ import { ReleasesPage } from './pages/Releases';
 import { ReleaseDetailPage } from './pages/ReleaseDetail';
 import { UsersPage } from './pages/Users';
 import { JobsPage } from './pages/Jobs';
+import { ConfirmEmailPage, EmailBanner, ForgotPasswordPage, ResetPasswordPage, SetupPage } from './pages/Account';
 
 const NAV = [
   { to: '/', label: 'Übersicht', icon: '◉', end: true },
@@ -25,15 +26,21 @@ export function App() {
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
 
-  if (location.pathname.startsWith('/einladung/')) {
+  // Öffentliche Seiten (ohne Anmeldung, auch für App-Nutzer)
+  if (/^\/(einladung\/|passwort-vergessen|konto\/)/.test(location.pathname)) {
     return (
       <Routes>
         <Route path="/einladung/:code" element={<InvitePage />} />
+        <Route path="/passwort-vergessen" element={<ForgotPasswordPage />} />
+        <Route path="/konto/passwort-zuruecksetzen" element={<ResetPasswordPage />} />
+        <Route path="/konto/email-bestaetigen" element={<ConfirmEmailPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
   if (loading) return <div className="login-wrap muted">Lade …</div>;
   if (!user) return <LoginPage />;
+  if (user.mustChangePassword) return <SetupPage />;
   if (user.role !== 'ADMIN') {
     return (
       <div className="login-wrap">
@@ -78,6 +85,7 @@ export function App() {
         </button>
       </nav>
       <main className="main">
+        <EmailBanner />
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/upload" element={<UploadPage />} />

@@ -126,6 +126,10 @@ export interface User {
   id: string;
   username: string;
   displayName: string | null;
+  email: string | null;
+  emailVerified: boolean;
+  mustChangePassword: boolean;
+  pendingEmail?: string | null;
   role: 'ADMIN' | 'USER';
   disabled: boolean;
   createdAt: string;
@@ -135,6 +139,11 @@ export interface Artist {
   id: string;
   name: string;
   imageId: string | null;
+}
+export interface SetupInfo {
+  emailRequired: boolean;
+  passwordResetAvailable: boolean;
+  pendingEmail: string | null;
 }
 export interface Release {
   id: string;

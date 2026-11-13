@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { useAuth } from '../lib/auth';
 import { errorMessage } from '../lib/api';
 import { ErrorBox } from '../components/ui';
@@ -30,8 +31,8 @@ export function LoginPage() {
         <h1 style={{ textAlign: 'center', marginBottom: 4 }}>Demonify</h1>
         <p className="muted" style={{ textAlign: 'center' }}>Verwaltung – bitte anmelden</p>
         <label className="field">
-          Benutzername
-          <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus required />
+          Anmeldename oder E-Mail
+          <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus required maxLength={254} />
         </label>
         <label className="field">
           Passwort
@@ -41,6 +42,9 @@ export function LoginPage() {
         <button className="btn primary" disabled={busy || !username || !password}>
           {busy ? 'Anmelden …' : 'Anmelden'}
         </button>
+        <Link to="/passwort-vergessen" style={{ textAlign: 'center' }}>
+          Passwort vergessen?
+        </Link>
       </form>
     </div>
   );
