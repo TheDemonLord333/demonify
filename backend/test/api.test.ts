@@ -561,6 +561,40 @@ describe('Katalogabgleich nach Scan und Künstler löschen', () => {
   });
 });
 
+describe('Autoplay: ähnliche Titel', () => {
+  it('liefert nur abspielbare Titel mit gleichem Genre oder Künstler, nie den Ausgangstitel', async () => {
+    const m = env.config.MUSIC_DIR;
+    const mk = async (artist: string, title: string, genre: string, freq: number) => {
+      const dir = path.join(m, artist, 'Singles', `2024 - ${title}`);
+      await fs.mkdir(dir, { recursive: true });
+      makeAudio(path.join(dir, 'audio.flac'), { freq, tags: { title, artist, genre } });
+    };
+    await mk('Radio Eins', 'Basis', 'Synthwave', 700);
+    await mk('Radio Eins', 'Gleicher Künstler', 'Jazz', 710);
+    await mk('Radio Zwei', 'Gleiches Genre', 'synthwave', 720);
+    await mk('Radio Drei', 'Unpassend', 'Polka', 730);
+    await runLibraryScan(env.db, env.config);
+    const id = async (title: string) => (await env.db.track.findFirstOrThrow({ where: { title } })).id;
+    const baseId = await id('Basis');
+    const r = await get(`/tracks/${baseId}/similar?limit=50`, alice.auth);
+    expect(r.statusCode).toBe(200);
+    const titles = (r.json().items as Array<{ title: string; id: string; available: boolean }>).map((t) => t.title);
+    expect(titles).toContain('Gleicher Künstler');
+    expect(titles).toContain('Gleiches Genre');
+    expect(titles).not.toContain('Unpassend');
+    expect(titles).not.toContain('Basis');
+    // exclude wird beachtet; nicht verfügbare Titel nie
+    const ex = await get(`/tracks/${baseId}/similar?exclude=${await id('Gleiches Genre')}`, alice.auth);
+    expect(ex.json().items.map((t: { title: string }) => t.title)).not.toContain('Gleiches Genre');
+    await env.db.track.update({ where: { id: await id('Gleicher Künstler') }, data: { available: false } });
+    const un = await get(`/tracks/${baseId}/similar`, alice.auth);
+    expect(un.json().items.map((t: { title: string }) => t.title)).not.toContain('Gleicher Künstler');
+    // Kein passender Titel → leere Liste
+    const none = await get(`/tracks/${await id('Unpassend')}/similar`, alice.auth);
+    expect(none.json().items).toEqual([]);
+  });
+});
+
 describe('Streaming', () => {
   it('unterstützt Range-Anfragen und lehnt ungültige Signaturen ab', async () => {
     const t = await env.db.track.findFirstOrThrow({ where: { available: true } });
