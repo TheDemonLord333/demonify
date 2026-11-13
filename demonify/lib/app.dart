@@ -8,6 +8,7 @@ import 'features/admin/admin_screens.dart';
 import 'features/admin/admin_upload_screen.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/setup_screen.dart';
 import 'features/catalog/artist_screen.dart';
 import 'features/catalog/catalog_providers.dart';
 import 'features/catalog/release_screen.dart';
@@ -44,7 +45,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth.isLoading && !auth.hasValue) return loc == '/splash' ? null : '/splash';
       final session = auth.value;
       if (session == null) return loc == '/login' ? null : '/login';
-      if (loc == '/login' || loc == '/splash') return '/home';
+      // Ersteinrichtung (Startpasswort, E-Mail-Bestätigung) vor allem anderen
+      if (session.needsSetup) return loc == '/setup' ? null : '/setup';
+      if (loc == '/login' || loc == '/splash' || loc == '/setup') return '/home';
       // Sichtbarkeit ist kein Schutz – die API prüft jede Berechtigung serverseitig
       if (loc.startsWith('/admin') && !session.user.isAdmin) return '/home';
       rememberTab(loc);
@@ -53,6 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (c, s) => const _Splash()),
       GoRoute(path: '/login', builder: (c, s) => const LoginScreen()),
+      GoRoute(path: '/setup', builder: (c, s) => const SetupScreen()),
       GoRoute(
         path: '/player',
         parentNavigatorKey: rootKey,

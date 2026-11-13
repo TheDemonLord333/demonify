@@ -406,7 +406,7 @@
   "typeSingles": "Singles",
   "unavailable": "Nicht verfügbar",
   "upNext": "Als Nächstes",
-  "username": "Benutzername",
+  "username": "Anmeldename",
   "usernameRules": "3–32 Zeichen: Buchstaben, Ziffern, Punkt, Unter- und Bindestrich.",
   "yourPlaylists": "Deine Playlists",
   "deleteAccount": "Konto löschen",
@@ -425,5 +425,65 @@
         "type": "String"
       }
     }
-  }
+  },
+  "setupTitle": "Konto einrichten",
+  "setupStep": "Schritt {current} von {total}",
+  "@setupStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "setupPasswordTitle": "Willkommen bei Demonify",
+  "setupPasswordIntro": "Dein Konto wurde mit einem Startpasswort angelegt. Lege deinen Anzeigenamen und ein eigenes Passwort fest – das Startpasswort ist danach ungültig.",
+  "displayName": "Anzeigename",
+  "displayNameHelp": "So wirst du in Demonify angezeigt. Angemeldet wird weiter mit dem Anmeldenamen.",
+  "displayNameMissing": "Noch nicht festgelegt – tippen zum Ergänzen",
+  "setupStartPassword": "Startpasswort",
+  "newPassword": "Neues Passwort (mind. 10 Zeichen)",
+  "setupContinue": "Weiter",
+  "setupEmailTitle": "E-Mail-Adresse bestätigen",
+  "setupEmailIntro": "Mit einer bestätigten E-Mail-Adresse kannst du dich auch per E-Mail anmelden und dein Passwort selbst zurücksetzen, falls du es vergisst.",
+  "email": "E-Mail-Adresse",
+  "emailNew": "Neue E-Mail-Adresse",
+  "emailInvalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
+  "emailNone": "Keine bestätigte Adresse",
+  "emailPending": "Wartet auf Bestätigung: {email}",
+  "@emailPending": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "passwordConfirmLabel": "Aktuelles Passwort zur Bestätigung",
+  "emailSendLink": "Bestätigungslink senden",
+  "emailLinkSent": "Wir haben einen Bestätigungslink an {email} gesendet. Öffne ihn – gern auch auf einem anderen Gerät – und tippe danach auf „Ich habe bestätigt“.",
+  "@emailLinkSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "emailIConfirmed": "Ich habe bestätigt",
+  "emailNotYetConfirmed": "Die Adresse ist noch nicht bestätigt. Bitte öffne den Link in der Mail (auch im Spam-Ordner nachsehen).",
+  "emailResend": "Link erneut senden",
+  "emailLinkResent": "Neuer Link gesendet. Ältere Links sind damit ungültig.",
+  "emailResendOrChange": "Erneut senden oder andere Adresse",
+  "emailChangeAddress": "Andere Adresse verwenden",
+  "emailChangeTitle": "E-Mail-Adresse ändern",
+  "emailChangeIntro": "Die neue Adresse wird erst aktiv, wenn du den Link in der Bestätigungsmail öffnest. Bis dahin bleibt die bisherige Adresse gültig.",
+  "loginIdentifier": "Anmeldename oder E-Mail",
+  "forgotPassword": "Passwort vergessen?",
+  "forgotIntro": "Gib deinen Anmeldenamen oder deine bestätigte E-Mail-Adresse ein. Wir senden dir einen Link, mit dem du ein neues Passwort festlegen kannst.",
+  "forgotSend": "Link senden",
+  "forgotSending": "Wird gesendet …",
+  "forgotFallback": "Keine bestätigte E-Mail-Adresse oder kein Zugriff mehr darauf? Dann kann ein Administrator dein Passwort zurücksetzen.",
+  "backToLogin": "Zurück zur Anmeldung",
+  "inviteEmailHelp": "Du erhältst einen Link zur Bestätigung."
 }

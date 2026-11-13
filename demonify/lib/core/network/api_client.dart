@@ -120,9 +120,10 @@ class ApiClient {
   }
 
   /// Anmeldung ohne bestehende Session
-  static Future<StoredSession> login({
+  /// [identifier]: Anmeldename oder bestätigte E-Mail-Adresse
+  static Future<(StoredSession, Map<String, dynamic>?)> login({
     required String apiBase,
-    required String username,
+    required String identifier,
     required String password,
     required String deviceName,
   }) async {
@@ -134,7 +135,7 @@ class ApiClient {
     ));
     try {
       final res = await dio.post<dynamic>('auth/login', data: {
-        'username': username,
+        'identifier': identifier,
         'password': password,
         'client': 'app',
         'deviceName': deviceName,
@@ -143,12 +144,15 @@ class ApiClient {
       if (d is! Map<String, dynamic> || d['accessToken'] == null) {
         throw ApiException(code: 'UNEXPECTED_RESPONSE', message: 'Unerwartete Serverantwort. Stimmt die Serveradresse?');
       }
-      return StoredSession(
-        apiBase: apiBase,
-        accessToken: d['accessToken'] as String,
-        accessExpiresAt: DateTime.parse(d['accessTokenExpiresAt'] as String),
-        refreshToken: d['refreshToken'] as String,
-        user: (d['user'] as Map).cast<String, dynamic>(),
+      return (
+        StoredSession(
+          apiBase: apiBase,
+          accessToken: d['accessToken'] as String,
+          accessExpiresAt: DateTime.parse(d['accessTokenExpiresAt'] as String),
+          refreshToken: d['refreshToken'] as String,
+          user: (d['user'] as Map).cast<String, dynamic>(),
+        ),
+        (d['setup'] as Map?)?.cast<String, dynamic>(),
       );
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
@@ -157,21 +161,43 @@ class ApiClient {
     }
   }
 
-  static Future<void> redeemInvite({
+  /// Einladung einlösen. Liefert true, wenn ein Bestätigungslink an [email] gesendet wurde.
+  static Future<bool> redeemInvite({
     required String apiBase,
     required String code,
     required String username,
     required String password,
     String? displayName,
+    String? email,
   }) async {
     final dio = Dio(BaseOptions(baseUrl: apiBase, connectTimeout: const Duration(seconds: 10)));
     try {
-      await dio.post<dynamic>('auth/invites/redeem', data: {
+      final res = await dio.post<dynamic>('auth/invites/redeem', data: {
         'code': code,
         'username': username,
         'password': password,
         if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+        if (email != null && email.isNotEmpty) 'email': email,
       });
+      final d = res.data;
+      return d is Map && d['emailSent'] == true;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    } finally {
+      dio.close();
+    }
+  }
+
+  /// „Passwort vergessen“: Anmeldename oder E-Mail. Der Server antwortet immer neutral.
+  static Future<String> forgotPassword({required String apiBase, required String identifier}) async {
+    final dio = Dio(BaseOptions(baseUrl: apiBase, connectTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 20)));
+    try {
+      final res = await dio.post<dynamic>('auth/password/forgot', data: {'identifier': identifier});
+      final d = res.data;
+      if (d is! Map || d['message'] is! String) {
+        throw ApiException(code: 'UNEXPECTED_RESPONSE', message: 'Unerwartete Serverantwort. Stimmt die Serveradresse?');
+      }
+      return d['message'] as String;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     } finally {

@@ -23,7 +23,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Demonify'), findsOneWidget);
-    expect(find.text('Benutzername'), findsOneWidget);
+    expect(find.text('Anmeldename oder E-Mail'), findsOneWidget);
+    expect(find.text('Passwort vergessen?'), findsOneWidget);
     expect(find.text('Anmelden'), findsOneWidget);
     // Leere Eingaben → Validierung statt Netzwerkaufruf
     await tester.ensureVisible(find.text('Anmelden'));

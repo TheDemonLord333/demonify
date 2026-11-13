@@ -45,6 +45,25 @@ class SettingsScreen extends ConsumerWidget {
             title: Text(session?.user.label ?? '–'),
             subtitle: Text(session?.user.isAdmin == true ? s.roleAdmin : s.roleUser),
           ),
+          if (session?.offline != true) ...[
+            ListTile(
+              leading: const Icon(Icons.badge_rounded),
+              title: Text(s.displayName),
+              subtitle: Text(session?.user.displayName ?? s.displayNameMissing),
+              trailing: const Icon(Icons.edit_rounded, size: 20),
+              onTap: () => _editDisplayName(context, ref),
+            ),
+            ListTile(
+              leading: Icon(session?.user.emailVerified == true ? Icons.mark_email_read_rounded : Icons.alternate_email_rounded),
+              title: Text(s.email),
+              subtitle: Text([
+                session?.user.email ?? s.emailNone,
+                if (session?.setup.pendingEmail != null) s.emailPending(session!.setup.pendingEmail!),
+              ].join('\n')),
+              trailing: const Icon(Icons.edit_rounded, size: 20),
+              onTap: () => _changeEmail(context, ref),
+            ),
+          ],
           ListTile(
             leading: const Icon(Icons.dns_rounded),
             title: Text(s.serverAddress),
@@ -107,6 +126,103 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _editDisplayName(BuildContext context, WidgetRef ref) async {
+    final s = context.s;
+    final ctrl = TextEditingController(text: ref.read(currentUserProvider)?.displayName ?? '');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(s.displayName),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 64,
+          decoration: InputDecoration(helperText: s.displayNameHelp),
+          onSubmitted: (v) => Navigator.pop(c, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(s.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(s.save)),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (name == null) return;
+    try {
+      await ref.read(authProvider.notifier).updateDisplayName(name);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorText(e))));
+    }
+  }
+
+  /// E-Mail ändern: neue Adresse + Passwort (erneute Authentifizierung); aktiv nach Klick auf den Link
+  Future<void> _changeEmail(BuildContext context, WidgetRef ref) async {
+    final s = context.s;
+    final email = TextEditingController();
+    final pw = TextEditingController();
+    String? error;
+    var busy = false;
+    final sentTo = await showDialog<String>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setState) => AlertDialog(
+          title: Text(s.emailChangeTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.emailChangeIntro, style: const TextStyle(color: DColors.textMuted)),
+                const SizedBox(height: DSpacing.m),
+                TextField(
+                  controller: email,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: InputDecoration(labelText: s.emailNew),
+                ),
+                const SizedBox(height: DSpacing.m),
+                TextField(
+                  controller: pw,
+                  obscureText: true,
+                  decoration: InputDecoration(labelText: s.passwordConfirmLabel, errorText: error, errorMaxLines: 3),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: busy ? null : () => Navigator.pop(c), child: Text(s.cancel)),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      setState(() {
+                        busy = true;
+                        error = null;
+                      });
+                      try {
+                        final to = await ref.read(authProvider.notifier).requestEmail(email: email.text.trim(), password: pw.text);
+                        if (c.mounted) Navigator.pop(c, to);
+                      } catch (e) {
+                        setState(() {
+                          busy = false;
+                          error = errorText(e);
+                        });
+                      }
+                    },
+              child: Text(s.emailSendLink),
+            ),
+          ],
+        ),
+      ),
+    );
+    email.dispose();
+    pw.dispose();
+    if (sentTo != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.emailLinkSent(sentTo)), duration: const Duration(seconds: 6)));
+    }
   }
 
   Future<void> _pickQuality(BuildContext context, WidgetRef ref, AudioQuality current, UserSettings Function(AudioQuality) apply) async {
