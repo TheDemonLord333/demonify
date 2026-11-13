@@ -12,6 +12,7 @@ import '../catalog/models.dart';
 import '../downloads/download_manager.dart';
 import '../settings/settings_controller.dart';
 import 'audio_engine.dart';
+import 'autoplay.dart';
 import 'equalizer/eq_model.dart';
 import 'queue_model.dart';
 
@@ -117,6 +118,13 @@ class PlayerController {
   Duration _position = Duration.zero;
   Duration _buffered = Duration.zero;
   int _loadToken = 0;
+
+  /// Wird bei jeder Änderung der Warteschlange erhöht (Erkennung von Nutzeraktionen während Autoplay)
+  int _queueRevision = 0;
+
+  /// Läuft gerade eine Autoplay-Suche? (für UI/Tests)
+  bool _autoplaySearching = false;
+  bool get autoplaySearching => _autoplaySearching;
   bool _prepared = false;
   Duration _resumeAt = Duration.zero;
   String? _contextType;
@@ -143,6 +151,7 @@ class PlayerController {
   }
 
   void _syncQueue({int? index}) {
+    _queueRevision++;
     _emit(_state.copyWith(queue: _queue.items, index: index ?? _queue.index, shuffle: _queue.shuffle, repeat: _queue.repeat));
     _schedulePersist();
   }
@@ -361,6 +370,8 @@ class PlayerController {
   }
 
   Future<void> _onCompleted() async {
+    // Nur reguläres Titelende: nach Stopp/Fehler/Laden kein Weiterschalten und kein Autoplay
+    if (!_prepared || _state.loading || _state.error != null) return;
     if (_queue.repeat == RepeatMode.one) {
       await _engine.seek(Duration.zero);
       await _engine.play();
@@ -369,15 +380,44 @@ class PlayerController {
     }
     final i = _queue.nextIndex(auto: true);
     if (i == null) {
-      // Ende der Warteschlange: anhalten, Position zurücksetzen
+      // Ende der Warteschlange (Wiederholen aus): anhalten, Position zurücksetzen
+      final finished = _queue.current?.track;
       await _engine.pause();
       _prepared = false;
       _resumeAt = Duration.zero;
       _position = Duration.zero;
       _posCtrl.add(positionInfo);
+      if (finished != null) await _autoplayAfter(finished);
       return;
     }
     _queue.jumpTo(i);
+    _syncQueue();
+    await _loadCurrent(autoplay: true);
+  }
+
+  /// Autoplay: einen zufälligen, ähnlichen Titel anhängen und spielen. Startet der Nutzer währenddessen
+  /// etwas anderes (Warteschlange oder Ladevorgang geändert), wird das Ergebnis verworfen.
+  Future<void> _autoplayAfter(Track finished) async {
+    final revision = _queueRevision;
+    final token = _loadToken;
+    bool userActed() => revision != _queueRevision || token != _loadToken || _state.playing;
+    _autoplaySearching = true;
+    List<Track> candidates;
+    try {
+      final recent = _queue.items.reversed.take(100).map((e) => e.track.id).toList();
+      candidates = await _ref.read(autoplaySourceProvider).candidates(finished, recentIds: recent);
+    } catch (_) {
+      candidates = const [];
+    } finally {
+      _autoplaySearching = false;
+    }
+    if (userActed()) return;
+    final next = candidates.where((t) => t.available && t.id != finished.id).firstOrNull;
+    if (next == null) return; // nichts Passendes → Wiedergabe endet regulär
+    _queue.addToQueue([next]);
+    _queue.jumpTo(_queue.items.length - 1);
+    _contextType = 'autoplay';
+    _contextId = finished.id;
     _syncQueue();
     await _loadCurrent(autoplay: true);
   }

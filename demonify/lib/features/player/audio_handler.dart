@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/storage/cover_cache.dart';
 import '../../core/storage/providers.dart';
 import '../catalog/models.dart';
+import 'now_playing_art.dart';
 import 'player_controller.dart';
 import 'player_providers.dart';
 import 'queue_model.dart';
@@ -27,21 +28,29 @@ class DemonifyAudioHandler extends BaseAudioHandler with SeekHandler {
 
   final ProviderContainer _container;
   PlayerController get _player => _container.read(playerProvider);
-  String? _currentArtFor;
 
-  void _onState(PlayerSnapshot s) {
-    _broadcast(s);
+  /// Cover für Sperrbildschirm/Control Center. Früher wurde das Bild nach einem Fehlversuch für denselben
+  /// Titel nie erneut geladen, und eine spätere Aktualisierung (z. B. Dauer bekannt) entfernte ein bereits
+  /// gesetztes Bild wieder. Jetzt: lokales Bild sofort, Nachladen mit Wiederholung, kein Zuordnen zum falschen Titel.
+  late final NowPlayingArt _art = NowPlayingArt(
+    resolve: (id) async => _container.read(coverCacheProvider)?.get(id, CoverSize.large),
+    local: (id) => _container.read(coverCacheProvider)?.localAny(id),
+    onChanged: () => _onState(_player.state, broadcast: false),
+  );
+
+  void _onState(PlayerSnapshot s, {bool broadcast = true}) {
+    if (broadcast) _broadcast(s);
     final t = s.current;
     if (t == null) {
-      mediaItem.add(null);
+      if (mediaItem.value != null) mediaItem.add(null);
       return;
     }
-    final item = _mediaItem(t, null);
-    if (mediaItem.value?.id != t.id || mediaItem.value?.duration != item.duration) {
+    final item = _mediaItem(t, _art.artFor(t));
+    final cur = mediaItem.value;
+    if (cur == null || cur.id != item.id || cur.duration != item.duration || cur.artUri != item.artUri || cur.title != item.title) {
       mediaItem.add(item);
-      unawaited(_loadArt(t));
     }
-    queue.add(s.queue.map((e) => _mediaItem(e.track, null)).toList());
+    if (broadcast) queue.add(s.queue.map((e) => _mediaItem(e.track, null)).toList());
   }
 
   MediaItem _mediaItem(Track t, Uri? art) => MediaItem(
@@ -52,16 +61,6 @@ class DemonifyAudioHandler extends BaseAudioHandler with SeekHandler {
         duration: t.duration,
         artUri: art,
       );
-
-  Future<void> _loadArt(Track t) async {
-    final id = t.coverImageId;
-    if (id == null || _currentArtFor == '${t.id}:$id') return;
-    _currentArtFor = '${t.id}:$id';
-    final cache = _container.read(coverCacheProvider);
-    final file = await cache?.get(id, CoverSize.large);
-    if (file == null || mediaItem.value?.id != t.id) return;
-    mediaItem.add(_mediaItem(t, Uri.file(file.path)));
-  }
 
   void _broadcast(PlayerSnapshot s, {Duration? position}) {
     final processing = s.loading
