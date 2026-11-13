@@ -30,6 +30,16 @@ class CoverCache {
     return null;
   }
 
+  /// Beliebige lokal vorhandene Größe (bevorzugt groß), z. B. offline für den Sperrbildschirm
+  File? localAny(String id) {
+    for (final size in [CoverSize.large, CoverSize.medium, CoverSize.small]) {
+      final c = _cacheFile(id, size);
+      if (c.existsSync()) return c;
+    }
+    final o = offlineFile(id);
+    return o.existsSync() ? o : null;
+  }
+
   Future<File?> get(String id, CoverSize size) {
     final key = '$id-${size.name}';
     return _inflight[key] ??= _load(id, size).whenComplete(() => _inflight.remove(key));

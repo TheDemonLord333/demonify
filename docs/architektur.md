@@ -54,8 +54,34 @@ Manuell gesetzte Cover/Metadaten sind gesperrt (`coverLocked`/`metaLocked`) und 
 ## Bibliotheksscan
 
 Idempotent: bekannte Dateien über Pfad + Größe + mtime, verschobene Dateien über Inhalts-Fingerabdruck
-(Größe + erste/letzte MiB), fehlende Dateien → „nicht verfügbar“ (Playlists/Verlauf bleiben), fehlerhafte Dateien
-einzeln als Problem gemeldet, unvollständige Metadaten zur Korrektur markiert. Gleichzeitige Scans verhindert ein PostgreSQL-Advisory-Lock.
+(Größe + erste/letzte MiB), fehlerhafte Dateien einzeln als Problem gemeldet, unvollständige Metadaten zur Korrektur markiert.
+Gleichzeitige Scans (und Künstler-Löschungen) verhindert ein PostgreSQL-Advisory-Lock.
+
+**Abgleich gelöschter Dateien** (nur nach einem erfolgreichen, nicht abgebrochenen Scan):
+
+- Fehlt eine Datei und wurde ihr Ordner bzw. der nächste vorhandene übergeordnete Ordner vollständig gelesen, gilt sie als
+  gelöscht: Der Track verschwindet aus dem Katalog (inkl. Einträgen in Playlists/Favoriten/Verlauf). Ein Album mit
+  verbleibenden Tracks bleibt bestehen; eine Veröffentlichung ohne Tracks verschwindet.
+- Konnte ein Ordner nicht gelesen werden (Rechte, E/A-Fehler), wird darunter nichts gelöscht – Tracks werden nur
+  „nicht verfügbar“ und als Problem gemeldet. Ist das Musikverzeichnis leer, obwohl der Katalog Songs enthält
+  (z. B. Datenträger nicht eingehängt), bricht der Scan ab, ohne etwas zu löschen. Nicht lesbares Musikverzeichnis → Abbruch.
+- Künstler haben eine Herkunft: `MANUAL` (in der Verwaltung angelegt), `SCAN` (vom Scan erkannt), `LEGACY` (Bestand vor
+  dieser Unterscheidung). Nach dem Scan werden `SCAN`-Künstler entfernt, die weder Albumkünstler einer Veröffentlichung
+  noch Haupt-/Gastkünstler eines Tracks sind (über alle Ordner). `MANUAL` und `LEGACY` bleiben immer.
+  Altbestand einstufen: Verwaltung → Künstler → Spalte „Herkunft“ oder `demonify-cli classify-legacy-artists [--apply]`.
+- Wiederholte Scans desselben Zustands ändern nichts.
+
+**Künstler löschen** (Verwaltung → Künstler → „Löschen“, mit Vorschau):
+
+- Eigene Veröffentlichungen (Albumkünstler) werden aus dem Katalog entfernt. Ihre Audiodateien werden **nicht gelöscht**,
+  sondern nach `MUSIC_DIR/.demonify-papierkorb/<Zeit> <Name> [id]/<ursprünglicher Pfad>` verschoben. Der Scan ignoriert
+  Ordner mit Punkt → nichts kehrt zurück. Wiederherstellen: Dateien zurückverschieben und scannen. Endgültig löschen:
+  den Papierkorb-Ordner auf dem Server entfernen.
+- Verschoben werden nur die Audiodateien dieser Tracks (jede gehört genau einem Track). Bilder, Ordner und Dateien anderer
+  Veröffentlichungen bleiben unangetastet. Schlägt ein Verschieben fehl, wird alles zurückgerollt.
+- Fremde/gemeinsame Veröffentlichungen bleiben verfügbar; nur die Mitwirkung wird entfernt. Verliert ein Track dadurch
+  alle Hauptkünstler, wird der Albumkünstler Hauptkünstler. Unveränderte Dateien werden beim Scan nicht neu eingelesen,
+  der gelöschte Künstler kehrt also nicht zurück (erst wenn eine Datei mit seinem Namen neu hinzukommt oder geändert wird).
 
 ## App (`demonify/lib`)
 
@@ -96,6 +122,32 @@ und media_kit. Entscheidung: **FFmpeg-Filter `equalizer` in libmpv**. Die media_
 
 Einschränkung: Die Wirksamkeit auf echten Android-/iOS-Geräten konnte in der Entwicklungsumgebung nicht gehört werden
 (keine Geräte/SDKs); geprüft wurden Filtersyntax (FFmpeg), Build-Konfiguration der Bibliotheken und die App-Logik per Tests.
+
+## Konten, E-Mail, Passwort vergessen
+
+Siehe [konten-email.md](konten-email.md).
+
+## Bibliothek (App)
+
+Öffnet ohne Filter: Lieblingssongs, Downloads, eigene Playlists, gespeicherte Veröffentlichungen und gefolgte Künstler
+gemeinsam (sortierbar nach „Zuletzt“ oder Name). Die Chips „Playlists“, „Alben“, „Künstler“ filtern dieselbe Liste;
+erneutes Antippen oder × hebt den Filter auf. Der gesamte Katalog (alle Künstler/Veröffentlichungen) liegt hinter dem
+Symbol oben rechts.
+
+## Autoplay
+
+Endet die Warteschlange regulär (Titelende, Wiederholen aus), lädt die App `GET /tracks/:id/similar`: zufällig gewählte,
+verfügbare Titel mit gleichem Genre und gemeinsamem Künstler, dann gleichem Genre, dann gemeinsamem Künstler.
+Der gerade beendete Titel ist ausgeschlossen, kürzlich gespielte werden gemieden. Offline: nur heruntergeladene Titel.
+Kein Treffer → Wiedergabe endet. „Song wiederholen“/„Wiederholen“ haben Vorrang; Pause, Stopp und Wiedergabefehler
+lösen nichts aus. Startet der Nutzer während der Suche etwas anderes, wird das Ergebnis verworfen.
+
+## Sperrbildschirm-Cover
+
+`NowPlayingArt` (App) liefert das effektive Cover (Songcover, sonst Veröffentlichungscover). Lokale Dateien (Cache oder
+Offline-Kopie eines Downloads) werden sofort gemeldet; sonst wird authentifiziert geladen. Fehlversuche werden
+wiederholt (bis zu 4-mal, alle 8 s). Ein verspätet geladenes Bild wird nur übernommen, wenn noch derselbe Titel läuft.
+Spätere Aktualisierungen des Titels behalten das Bild.
 
 ## Konten löschen
 

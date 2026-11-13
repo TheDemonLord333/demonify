@@ -4,6 +4,7 @@
  *   create-admin --username <name> [--display-name <name>]   Erstes/weiteres Admin-Konto (Passwort interaktiv oder per stdin)
  *   reset-password --username <name>                          Passwort neu setzen und Sitzungen beenden
  *   scan                                                      Bibliotheksscan (wiederholbar)
+ *   classify-legacy-artists [--apply]                         Altbestand-Künstler (Herkunft unklar) einstufen
  *   cleanup-uploads                                           Abgelaufene Uploads entfernen
  *   seed-dev                                                  Testtöne erzeugen (nur DEV_SEED_ENABLED=true, nie in Produktion)
  */
@@ -88,6 +89,37 @@ program
       await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(pw) } });
       await revokeAllSessions(db, user.id, 'password_reset_cli');
       console.log('Passwort geändert, alle Sitzungen beendet.');
+    } finally {
+      await db.$disconnect();
+    }
+  });
+
+program
+  .command('classify-legacy-artists')
+  .description(
+    'Künstler aus der Zeit vor der Herkunftserfassung (LEGACY) einstufen: mit Veröffentlichungen/Songs → SCAN ' +
+      '(wird künftig automatisch aufgeräumt), ohne → bleibt LEGACY. Ohne --apply nur Vorschau.',
+  )
+  .option('--apply', 'Änderungen wirklich speichern')
+  .action(async (opts: { apply?: boolean }) => {
+    const config = loadConfig();
+    const db = createDb(config.DATABASE_URL);
+    try {
+      const legacy = await db.artist.findMany({
+        where: { origin: 'LEGACY' },
+        orderBy: { nameKey: 'asc' },
+        include: { _count: { select: { releases: true, tracks: true } } },
+      });
+      const linked = legacy.filter((a) => a._count.releases > 0 || a._count.tracks > 0);
+      const unlinked = legacy.filter((a) => !linked.includes(a));
+      console.log(`${legacy.length} Altbestand-Künstler: ${linked.length} mit Veröffentlichungen/Songs → SCAN, ${unlinked.length} ohne → bleiben LEGACY (manuell prüfen).`);
+      for (const a of unlinked) console.log(`  ohne Verbindung: ${a.name}`);
+      if (!opts.apply) {
+        console.log('Vorschau. Mit --apply speichern. Einzelne Künstler lassen sich in der Verwaltung als „manuell“ markieren.');
+        return;
+      }
+      const res = await db.artist.updateMany({ where: { id: { in: linked.map((a) => a.id) }, origin: 'LEGACY' }, data: { origin: 'SCAN' } });
+      console.log(`${res.count} Künstler als automatisch erkannt (SCAN) eingestuft.`);
     } finally {
       await db.$disconnect();
     }

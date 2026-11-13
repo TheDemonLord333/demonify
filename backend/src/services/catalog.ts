@@ -29,7 +29,7 @@ export async function createArtist(db: Tx, rawName: string) {
     throw conflict(`Ein Künstler mit dem Namen „${existing.name}“ existiert bereits.`, { artist: { id: existing.id, name: existing.name } }, 'ARTIST_EXISTS');
   }
   try {
-    return await db.artist.create({ data: { name, nameKey: key, searchText: searchText(name) } });
+    return await db.artist.create({ data: { name, nameKey: key, searchText: searchText(name), origin: 'MANUAL' } });
   } catch (e) {
     if (isUniqueViolation(e)) {
       const other = await db.artist.findUnique({ where: { nameKey: key } });
@@ -43,13 +43,16 @@ export async function createArtist(db: Tx, rawName: string) {
   }
 }
 
-/** Für Scan/Import: vorhandenen Künstler wiederverwenden oder anlegen (race-sicher). */
+/**
+ * Für Scan/Import: vorhandenen Künstler wiederverwenden oder anlegen (race-sicher).
+ * Neu angelegte Einträge erhalten die Herkunft SCAN; die Herkunft vorhandener Einträge bleibt unverändert.
+ */
 export async function findOrCreateArtist(db: Tx, rawName: string) {
   const { name, key } = validateArtistName(rawName);
   const existing = await db.artist.findUnique({ where: { nameKey: key } });
   if (existing) return existing;
   try {
-    return await db.artist.create({ data: { name, nameKey: key, searchText: searchText(name) } });
+    return await db.artist.create({ data: { name, nameKey: key, searchText: searchText(name), origin: 'SCAN' } });
   } catch (e) {
     if (isUniqueViolation(e)) {
       const other = await db.artist.findUnique({ where: { nameKey: key } });

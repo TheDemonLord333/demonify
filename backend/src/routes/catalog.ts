@@ -159,6 +159,59 @@ export default async function catalogRoutes(fastify: FastifyInstance) {
     return { track: toTrackDto(t) };
   });
 
+  /**
+   * Autoplay: ähnliche, abspielbare Titel in zufälliger Reihenfolge.
+   * Stufen: 1) gleiches Genre UND gemeinsamer Künstler, 2) gleiches Genre, 3) gemeinsamer Künstler
+   * (Track-Künstler oder Albumkünstler). Der Ausgangstitel und `exclude` werden nie geliefert.
+   * Keine Treffer → leere Liste (die Wiedergabe endet regulär).
+   */
+  app.get(
+    '/tracks/:id/similar',
+    {
+      schema: {
+        tags: ['Katalog'],
+        params: z.object({ id: z.uuid() }),
+        querystring: z.object({
+          limit: z.coerce.number().int().min(1).max(50).default(20),
+          /** Kommagetrennte Track-IDs (z. B. zuletzt gespielte), höchstens 200 */
+          exclude: z.string().max(200 * 37).optional(),
+        }),
+      },
+    },
+    async (req) => {
+      const base = await app.db.track.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, genre: true, release: { select: { genre: true, albumArtistId: true } }, artists: { select: { artistId: true } } },
+      });
+      if (!base) throw notFound('Song nicht gefunden.');
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const exclude = [base.id, ...(req.query.exclude ?? '').split(',').map((x) => x.trim()).filter((x) => uuid.test(x))].slice(0, 201);
+      const genre = (base.genre ?? base.release.genre)?.trim().toLowerCase() || null;
+      const artistIds = [...new Set([...base.artists.map((a) => a.artistId), base.release.albumArtistId])];
+      const rows = await app.db.$queryRaw<Array<{ id: string; tier: number }>>`
+        WITH c AS (
+          SELECT t.id,
+            (${genre}::text IS NOT NULL AND lower(trim(coalesce(t.genre, r.genre))) = ${genre}::text) AS same_genre,
+            (r."albumArtistId" = ANY(${artistIds}::uuid[])
+              OR EXISTS (SELECT 1 FROM "TrackArtist" ta WHERE ta."trackId" = t.id AND ta."artistId" = ANY(${artistIds}::uuid[]))) AS same_artist
+          FROM "Track" t JOIN "Release" r ON r.id = t."releaseId"
+          WHERE t.available AND NOT (t.id = ANY(${exclude}::uuid[]))
+        )
+        SELECT id, CASE WHEN same_genre AND same_artist THEN 1 WHEN same_genre THEN 2 ELSE 3 END AS tier
+        FROM c WHERE same_genre OR same_artist
+        ORDER BY tier, random()
+        LIMIT ${req.query.limit}`;
+      const tracks = await app.db.track.findMany({ where: { id: { in: rows.map((r) => r.id) } }, include: trackInclude });
+      const byId = new Map(tracks.map((t) => [t.id, t]));
+      return {
+        items: rows
+          .map((r) => byId.get(r.id))
+          .filter((t) => !!t)
+          .map(toTrackDto),
+      };
+    },
+  );
+
   // Mehrere Tracks auf einmal (z. B. Wiederherstellung der Warteschlange)
   app.post('/tracks/batch', { schema: { tags: ['Katalog'], body: z.object({ ids: z.array(z.uuid()).max(500) }) } }, async (req) => {
     const tracks = await app.db.track.findMany({ where: { id: { in: req.body.ids } }, include: trackInclude });

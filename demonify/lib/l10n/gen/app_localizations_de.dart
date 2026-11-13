@@ -911,7 +911,7 @@ class SDe extends S {
   String get upNext => 'Als Nächstes';
 
   @override
-  String get username => 'Benutzername';
+  String get username => 'Anmeldename';
 
   @override
   String get usernameRules =>
@@ -953,4 +953,163 @@ class SDe extends S {
   String adminDeleteUserMessage(String name) {
     return 'Konto „$name“ endgültig löschen? Playlists, Lieblingssongs, Hörverlauf und Einstellungen dieses Kontos werden entfernt. Die Musikbibliothek bleibt erhalten. Das kann nicht rückgängig gemacht werden.';
   }
+
+  @override
+  String get setupTitle => 'Konto einrichten';
+
+  @override
+  String setupStep(int current, int total) {
+    return 'Schritt $current von $total';
+  }
+
+  @override
+  String get setupPasswordTitle => 'Willkommen bei Demonify';
+
+  @override
+  String get setupPasswordIntro =>
+      'Dein Konto wurde mit einem Startpasswort angelegt. Lege deinen Anzeigenamen und ein eigenes Passwort fest – das Startpasswort ist danach ungültig.';
+
+  @override
+  String get displayName => 'Anzeigename';
+
+  @override
+  String get displayNameHelp =>
+      'So wirst du in Demonify angezeigt. Angemeldet wird weiter mit dem Anmeldenamen.';
+
+  @override
+  String get displayNameMissing =>
+      'Noch nicht festgelegt – tippen zum Ergänzen';
+
+  @override
+  String get setupStartPassword => 'Startpasswort';
+
+  @override
+  String get newPassword => 'Neues Passwort (mind. 10 Zeichen)';
+
+  @override
+  String get setupContinue => 'Weiter';
+
+  @override
+  String get setupEmailTitle => 'E-Mail-Adresse bestätigen';
+
+  @override
+  String get setupEmailIntro =>
+      'Mit einer bestätigten E-Mail-Adresse kannst du dich auch per E-Mail anmelden und dein Passwort selbst zurücksetzen, falls du es vergisst.';
+
+  @override
+  String get email => 'E-Mail-Adresse';
+
+  @override
+  String get emailNew => 'Neue E-Mail-Adresse';
+
+  @override
+  String get emailInvalid => 'Bitte eine gültige E-Mail-Adresse eingeben.';
+
+  @override
+  String get emailNone => 'Keine bestätigte Adresse';
+
+  @override
+  String emailPending(String email) {
+    return 'Wartet auf Bestätigung: $email';
+  }
+
+  @override
+  String get passwordConfirmLabel => 'Aktuelles Passwort zur Bestätigung';
+
+  @override
+  String get emailSendLink => 'Bestätigungslink senden';
+
+  @override
+  String emailLinkSent(String email) {
+    return 'Wir haben einen Bestätigungslink an $email gesendet. Öffne ihn – gern auch auf einem anderen Gerät – und tippe danach auf „Ich habe bestätigt“.';
+  }
+
+  @override
+  String get emailIConfirmed => 'Ich habe bestätigt';
+
+  @override
+  String get emailNotYetConfirmed =>
+      'Die Adresse ist noch nicht bestätigt. Bitte öffne den Link in der Mail (auch im Spam-Ordner nachsehen).';
+
+  @override
+  String get emailResend => 'Link erneut senden';
+
+  @override
+  String get emailLinkResent =>
+      'Neuer Link gesendet. Ältere Links sind damit ungültig.';
+
+  @override
+  String get emailResendOrChange => 'Erneut senden oder andere Adresse';
+
+  @override
+  String get emailChangeAddress => 'Andere Adresse verwenden';
+
+  @override
+  String get emailChangeTitle => 'E-Mail-Adresse ändern';
+
+  @override
+  String get emailChangeIntro =>
+      'Die neue Adresse wird erst aktiv, wenn du den Link in der Bestätigungsmail öffnest. Bis dahin bleibt die bisherige Adresse gültig.';
+
+  @override
+  String get loginIdentifier => 'Anmeldename oder E-Mail';
+
+  @override
+  String get forgotPassword => 'Passwort vergessen?';
+
+  @override
+  String get forgotIntro =>
+      'Gib deinen Anmeldenamen oder deine bestätigte E-Mail-Adresse ein. Wir senden dir einen Link, mit dem du ein neues Passwort festlegen kannst.';
+
+  @override
+  String get forgotSend => 'Link senden';
+
+  @override
+  String get forgotSending => 'Wird gesendet …';
+
+  @override
+  String get forgotFallback =>
+      'Keine bestätigte E-Mail-Adresse oder kein Zugriff mehr darauf? Dann kann ein Administrator dein Passwort zurücksetzen.';
+
+  @override
+  String get backToLogin => 'Zurück zur Anmeldung';
+
+  @override
+  String get inviteEmailHelp => 'Du erhältst einen Link zur Bestätigung.';
+
+  @override
+  String get libraryAlbums => 'Alben';
+
+  @override
+  String get libraryCatalog => 'Gesamter Katalog';
+
+  @override
+  String get libraryClearFilter => 'Filter aufheben';
+
+  @override
+  String get libraryEmptyAll => 'Deine Bibliothek ist noch leer';
+
+  @override
+  String get libraryEmptyAllHint =>
+      'Erstelle Playlists, speichere Alben oder folge Künstlern – alles erscheint hier gemeinsam.';
+
+  @override
+  String get libraryEmptyPlaylists => 'Noch keine eigenen Playlists';
+
+  @override
+  String get libraryEmptyAlbums => 'Noch keine Alben gespeichert';
+
+  @override
+  String get libraryEmptyAlbumsHint =>
+      'Tippe auf einer Album-Seite auf „Speichern“, um es hier zu sehen.';
+
+  @override
+  String get libraryEmptyArtists => 'Du folgst noch keinen Künstlern';
+
+  @override
+  String get libraryEmptyArtistsHint =>
+      'Tippe auf einer Künstlerseite auf „Folgen“.';
+
+  @override
+  String get artist => 'Künstler';
 }

@@ -1,39 +1,47 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, setCsrfToken, setUnauthorizedHandler, type User } from './api';
+import { api, setCsrfToken, setUnauthorizedHandler, type SetupInfo, type User } from './api';
 
 interface AuthState {
   user: User | null;
+  setup: SetupInfo | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  /** Anmeldename oder bestätigte E-Mail-Adresse */
+  login: (identifier: string, password: string) => Promise<void>;
+  setUser: (u: User, setup?: SetupInfo) => void;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
+  const [setup, setSetup] = useState<SetupInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const setUser = useCallback((u: User | null, s?: SetupInfo) => {
+    setUserState(u);
+    if (s) setSetup(s);
+  }, []);
 
   useEffect(() => {
     setUnauthorizedHandler(() => setUser(null));
-    api<{ user: User; csrfToken: string | null }>('/auth/session')
+    api<{ user: User; setup: SetupInfo; csrfToken: string | null }>('/auth/session')
       .then((r) => {
-        setUser(r.user);
+        setUser(r.user, r.setup);
         if (r.csrfToken) setCsrfToken(r.csrfToken);
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const r = await api<{ user: User; csrfToken: string }>('/auth/login', {
+  const login = useCallback(async (identifier: string, password: string) => {
+    const r = await api<{ user: User; setup: SetupInfo; csrfToken: string }>('/auth/login', {
       method: 'POST',
-      body: { username, password, client: 'web', deviceName: 'Verwaltung (Browser)' },
+      body: { identifier, password, client: 'web', deviceName: 'Verwaltung (Browser)' },
       noRefresh: true,
     });
     setCsrfToken(r.csrfToken);
-    setUser(r.user);
-  }, []);
+    setUser(r.user, r.setup);
+  }, [setUser]);
 
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST', noRefresh: true }).catch(() => undefined);
@@ -41,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, setup, loading, login, logout, setUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthState {

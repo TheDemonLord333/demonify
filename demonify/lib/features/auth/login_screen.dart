@@ -47,7 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await ref.read(authProvider.notifier).login(server: _server.text, username: _user.text, password: _pass.text);
+      await ref.read(authProvider.notifier).login(server: _server.text, identifier: _user.text, password: _pass.text);
     } catch (e) {
       setState(() => _error = errorText(e));
     } finally {
@@ -90,12 +90,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: DSpacing.xl),
                         Text('Demonify', textAlign: TextAlign.center, style: Theme.of(context).textTheme.displaySmall),
                         const SizedBox(height: DSpacing.xs),
-                        Text(s.loginSubtitle, textAlign: TextAlign.center, style: const TextStyle(color: DColors.textMuted)),
+                        Text(
+                          s.loginSubtitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: DColors.textMuted),
+                        ),
                         const SizedBox(height: DSpacing.xxl),
                         TextFormField(
                           controller: _user,
-                          decoration: InputDecoration(labelText: s.username, prefixIcon: const Icon(Icons.person_rounded)),
-                          autofillHints: const [AutofillHints.username],
+                          decoration: InputDecoration(labelText: s.loginIdentifier, prefixIcon: const Icon(Icons.person_rounded)),
+                          autofillHints: const [AutofillHints.username, AutofillHints.email],
+                          keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           autocorrect: false,
                           enableSuggestions: false,
@@ -154,6 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : Text(s.login),
                         ),
                         const SizedBox(height: DSpacing.m),
+                        TextButton(onPressed: () => _showForgot(context), child: Text(s.forgotPassword)),
                         TextButton(onPressed: () => _showInvite(context), child: Text(s.inviteRedeem)),
                       ],
                     ),
@@ -167,16 +173,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Future<void> _showForgot(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (ctx) => _ForgotSheet(server: _server.text, initial: _user.text.trim()),
+  );
+
   Future<void> _showInvite(BuildContext context) async {
-    final ok = await showModalBottomSheet<bool>(
+    final email = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       builder: (ctx) => _InviteSheet(server: _server.text),
     );
-    if (ok == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.s.inviteSuccess)));
+    if (email != null && context.mounted) {
+      final s = context.s;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(duration: const Duration(seconds: 8), content: Text(email.isEmpty ? s.inviteSuccess : '${s.inviteSuccess} ${s.emailLinkSent(email)}')),
+      );
     }
   }
 }
@@ -192,6 +209,7 @@ class _InviteSheetState extends State<_InviteSheet> {
   final _code = TextEditingController();
   final _user = TextEditingController();
   final _display = TextEditingController();
+  final _email = TextEditingController();
   final _pass = TextEditingController();
   final _pass2 = TextEditingController();
   final _form = GlobalKey<FormState>();
@@ -212,16 +230,51 @@ class _InviteSheetState extends State<_InviteSheet> {
             children: [
               Text(s.inviteRedeem, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: DSpacing.l),
-              TextFormField(controller: _code, decoration: InputDecoration(labelText: s.inviteCode), validator: (v) => (v ?? '').trim().length < 10 ? s.fieldRequired : null),
+              TextFormField(
+                controller: _code,
+                decoration: InputDecoration(labelText: s.inviteCode),
+                validator: (v) => (v ?? '').trim().length < 10 ? s.fieldRequired : null,
+              ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _user, decoration: InputDecoration(labelText: s.username), autocorrect: false, validator: (v) => (v ?? '').trim().length < 3 ? s.usernameRules : null),
+              TextFormField(
+                controller: _user,
+                decoration: InputDecoration(labelText: s.username),
+                autocorrect: false,
+                validator: (v) => (v ?? '').trim().length < 3 ? s.usernameRules : null,
+              ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _display, decoration: InputDecoration(labelText: s.displayNameOptional)),
+              TextFormField(
+                controller: _display,
+                decoration: InputDecoration(labelText: s.displayName, helperText: s.displayNameHelp),
+                validator: (v) => (v ?? '').trim().isEmpty ? s.fieldRequired : null,
+              ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _pass, obscureText: true, decoration: InputDecoration(labelText: s.password), validator: (v) => (v ?? '').length < 10 ? s.passwordTooShort : null),
+              TextFormField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                decoration: InputDecoration(labelText: s.email, helperText: s.inviteEmailHelp),
+                validator: (v) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch((v ?? '').trim()) ? null : s.emailInvalid,
+              ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _pass2, obscureText: true, decoration: InputDecoration(labelText: s.passwordRepeat), validator: (v) => v != _pass.text ? s.passwordMismatch : null),
-              if (_error != null) Padding(padding: const EdgeInsets.only(top: DSpacing.m), child: Text(_error!, style: const TextStyle(color: DColors.danger))),
+              TextFormField(
+                controller: _pass,
+                obscureText: true,
+                decoration: InputDecoration(labelText: s.password),
+                validator: (v) => (v ?? '').length < 10 ? s.passwordTooShort : null,
+              ),
+              const SizedBox(height: DSpacing.m),
+              TextFormField(
+                controller: _pass2,
+                obscureText: true,
+                decoration: InputDecoration(labelText: s.passwordRepeat),
+                validator: (v) => v != _pass.text ? s.passwordMismatch : null,
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: DSpacing.m),
+                  child: Text(_error!, style: const TextStyle(color: DColors.danger)),
+                ),
               const SizedBox(height: DSpacing.l),
               FilledButton(
                 onPressed: _busy
@@ -235,14 +288,15 @@ class _InviteSheetState extends State<_InviteSheet> {
                         // Code kann auch als kompletter Link eingefügt werden
                         final code = _code.text.trim().split('/').last;
                         try {
-                          await ApiClient.redeemInvite(
+                          final sent = await ApiClient.redeemInvite(
                             apiBase: AppConfig.normalizeApiBase(widget.server),
                             code: code,
                             username: _user.text.trim(),
                             password: _pass.text,
                             displayName: _display.text.trim(),
+                            email: _email.text.trim(),
                           );
-                          if (context.mounted) Navigator.of(context).pop(true);
+                          if (context.mounted) Navigator.of(context).pop(sent ? _email.text.trim() : '');
                         } catch (e) {
                           setState(() => _error = errorText(e));
                         } finally {
@@ -253,6 +307,85 @@ class _InviteSheetState extends State<_InviteSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// „Passwort vergessen“: Anmeldename oder E-Mail → neutraler Hinweis, Link kommt per Mail
+class _ForgotSheet extends StatefulWidget {
+  const _ForgotSheet({required this.server, required this.initial});
+  final String server;
+  final String initial;
+  @override
+  State<_ForgotSheet> createState() => _ForgotSheetState();
+}
+
+class _ForgotSheetState extends State<_ForgotSheet> {
+  late final _id = TextEditingController(text: widget.initial);
+  bool _busy = false;
+  String? _error;
+  String? _message;
+
+  @override
+  void dispose() {
+    _id.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_id.text.trim().isEmpty) {
+      setState(() => _error = context.s.fieldRequired);
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final msg = await ApiClient.forgotPassword(apiBase: AppConfig.normalizeApiBase(widget.server), identifier: _id.text.trim());
+      if (mounted) setState(() => _message = msg);
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(DSpacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(s.forgotPassword, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: DSpacing.s),
+            if (_message != null) ...[
+              Text(_message!),
+              const SizedBox(height: DSpacing.l),
+              Text(s.forgotFallback, style: const TextStyle(color: DColors.textMuted)),
+              const SizedBox(height: DSpacing.l),
+              FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(s.backToLogin)),
+            ] else ...[
+              Text(s.forgotIntro, style: const TextStyle(color: DColors.textMuted)),
+              const SizedBox(height: DSpacing.l),
+              TextField(
+                controller: _id,
+                autofocus: widget.initial.isEmpty,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                decoration: InputDecoration(labelText: s.loginIdentifier, errorText: _error, prefixIcon: const Icon(Icons.person_rounded)),
+                onSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: DSpacing.l),
+              FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? s.forgotSending : s.forgotSend)),
+            ],
+          ],
         ),
       ),
     );

@@ -30,6 +30,14 @@ model User {
   /// Normalisierter Benutzername (NFKC, getrimmt, Kleinschreibung) – eindeutig
   usernameKey  String    @unique
   displayName  String?
+  /// Bestätigte E-Mail-Adresse (Anzeige-Schreibweise). Nur bestätigte Adressen werden hier gespeichert;
+  /// offene Änderungen liegen als Bestätigungs-Token in EmailToken.
+  email           String?
+  /// Normalisierte, bestätigte Adresse (NFKC, getrimmt, Kleinschreibung) – eindeutig
+  emailKey        String?   @unique
+  emailVerifiedAt DateTime?
+  /// Startpasswort vom Admin → erste Anmeldung erzwingt Passwortwechsel (serverseitig)
+  mustChangePassword Boolean @default(false)
   passwordHash String
   role         Role      @default(USER)
   disabledAt   DateTime?
@@ -47,6 +55,30 @@ model User {
   invitesCreated  Invite[]         @relation("InviteCreator")
   invitesUsed     Invite[]         @relation("InviteUser")
   uploads         Upload[]
+  emailTokens     EmailToken[]
+}
+
+enum EmailTokenKind {
+  VERIFY_EMAIL
+  PASSWORD_RESET
+}
+
+/// Einmal-Tokens für E-Mail-Bestätigung und Passwort-Zurücksetzen.
+/// Gespeichert wird nur der SHA-256-Hash; das Token selbst steht ausschließlich im versendeten Link.
+model EmailToken {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      EmailTokenKind
+  tokenHash String         @unique
+  /// Zieladresse (nur VERIFY_EMAIL)
+  email     String?
+  emailKey  String?
+  createdAt DateTime       @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId, kind, createdAt])
 }
 
 model Session {
@@ -110,6 +142,16 @@ enum ReleaseType {
   SINGLE
 }
 
+/// Herkunft eines Künstlereintrags
+enum ArtistOrigin {
+  /// In der Verwaltung angelegt → bleibt auch ohne Veröffentlichungen bestehen
+  MANUAL
+  /// Vom Bibliotheksscan aus Ordnern/Tags erkannt → wird nach erfolgreichem Scan entfernt, sobald nichts mehr auf ihn verweist
+  SCAN
+  /// Bestand vor Einführung der Herkunft (unklar) → wird wie MANUAL behandelt, bis ein Admin ihn einstuft
+  LEGACY
+}
+
 enum ArtistRole {
   PRIMARY
   FEATURED
@@ -160,6 +202,7 @@ model Artist {
   image         Image?   @relation(fields: [imageId], references: [id], onDelete: SetNull)
   /// Profilbild manuell gesetzt/entfernt → Scan überschreibt nicht
   imageLocked   Boolean  @default(false)
+  origin        ArtistOrigin @default(MANUAL)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

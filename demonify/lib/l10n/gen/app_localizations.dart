@@ -1740,7 +1740,7 @@ abstract class S {
   /// No description provided for @username.
   ///
   /// In de, this message translates to:
-  /// **'Benutzername'**
+  /// **'Anmeldename'**
   String get username;
 
   /// No description provided for @usernameRules.
@@ -1814,6 +1814,288 @@ abstract class S {
   /// In de, this message translates to:
   /// **'Konto „{name}“ endgültig löschen? Playlists, Lieblingssongs, Hörverlauf und Einstellungen dieses Kontos werden entfernt. Die Musikbibliothek bleibt erhalten. Das kann nicht rückgängig gemacht werden.'**
   String adminDeleteUserMessage(String name);
+
+  /// No description provided for @setupTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Konto einrichten'**
+  String get setupTitle;
+
+  /// No description provided for @setupStep.
+  ///
+  /// In de, this message translates to:
+  /// **'Schritt {current} von {total}'**
+  String setupStep(int current, int total);
+
+  /// No description provided for @setupPasswordTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Willkommen bei Demonify'**
+  String get setupPasswordTitle;
+
+  /// No description provided for @setupPasswordIntro.
+  ///
+  /// In de, this message translates to:
+  /// **'Dein Konto wurde mit einem Startpasswort angelegt. Lege deinen Anzeigenamen und ein eigenes Passwort fest – das Startpasswort ist danach ungültig.'**
+  String get setupPasswordIntro;
+
+  /// No description provided for @displayName.
+  ///
+  /// In de, this message translates to:
+  /// **'Anzeigename'**
+  String get displayName;
+
+  /// No description provided for @displayNameHelp.
+  ///
+  /// In de, this message translates to:
+  /// **'So wirst du in Demonify angezeigt. Angemeldet wird weiter mit dem Anmeldenamen.'**
+  String get displayNameHelp;
+
+  /// No description provided for @displayNameMissing.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch nicht festgelegt – tippen zum Ergänzen'**
+  String get displayNameMissing;
+
+  /// No description provided for @setupStartPassword.
+  ///
+  /// In de, this message translates to:
+  /// **'Startpasswort'**
+  String get setupStartPassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In de, this message translates to:
+  /// **'Neues Passwort (mind. 10 Zeichen)'**
+  String get newPassword;
+
+  /// No description provided for @setupContinue.
+  ///
+  /// In de, this message translates to:
+  /// **'Weiter'**
+  String get setupContinue;
+
+  /// No description provided for @setupEmailTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'E-Mail-Adresse bestätigen'**
+  String get setupEmailTitle;
+
+  /// No description provided for @setupEmailIntro.
+  ///
+  /// In de, this message translates to:
+  /// **'Mit einer bestätigten E-Mail-Adresse kannst du dich auch per E-Mail anmelden und dein Passwort selbst zurücksetzen, falls du es vergisst.'**
+  String get setupEmailIntro;
+
+  /// No description provided for @email.
+  ///
+  /// In de, this message translates to:
+  /// **'E-Mail-Adresse'**
+  String get email;
+
+  /// No description provided for @emailNew.
+  ///
+  /// In de, this message translates to:
+  /// **'Neue E-Mail-Adresse'**
+  String get emailNew;
+
+  /// No description provided for @emailInvalid.
+  ///
+  /// In de, this message translates to:
+  /// **'Bitte eine gültige E-Mail-Adresse eingeben.'**
+  String get emailInvalid;
+
+  /// No description provided for @emailNone.
+  ///
+  /// In de, this message translates to:
+  /// **'Keine bestätigte Adresse'**
+  String get emailNone;
+
+  /// No description provided for @emailPending.
+  ///
+  /// In de, this message translates to:
+  /// **'Wartet auf Bestätigung: {email}'**
+  String emailPending(String email);
+
+  /// No description provided for @passwordConfirmLabel.
+  ///
+  /// In de, this message translates to:
+  /// **'Aktuelles Passwort zur Bestätigung'**
+  String get passwordConfirmLabel;
+
+  /// No description provided for @emailSendLink.
+  ///
+  /// In de, this message translates to:
+  /// **'Bestätigungslink senden'**
+  String get emailSendLink;
+
+  /// No description provided for @emailLinkSent.
+  ///
+  /// In de, this message translates to:
+  /// **'Wir haben einen Bestätigungslink an {email} gesendet. Öffne ihn – gern auch auf einem anderen Gerät – und tippe danach auf „Ich habe bestätigt“.'**
+  String emailLinkSent(String email);
+
+  /// No description provided for @emailIConfirmed.
+  ///
+  /// In de, this message translates to:
+  /// **'Ich habe bestätigt'**
+  String get emailIConfirmed;
+
+  /// No description provided for @emailNotYetConfirmed.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Adresse ist noch nicht bestätigt. Bitte öffne den Link in der Mail (auch im Spam-Ordner nachsehen).'**
+  String get emailNotYetConfirmed;
+
+  /// No description provided for @emailResend.
+  ///
+  /// In de, this message translates to:
+  /// **'Link erneut senden'**
+  String get emailResend;
+
+  /// No description provided for @emailLinkResent.
+  ///
+  /// In de, this message translates to:
+  /// **'Neuer Link gesendet. Ältere Links sind damit ungültig.'**
+  String get emailLinkResent;
+
+  /// No description provided for @emailResendOrChange.
+  ///
+  /// In de, this message translates to:
+  /// **'Erneut senden oder andere Adresse'**
+  String get emailResendOrChange;
+
+  /// No description provided for @emailChangeAddress.
+  ///
+  /// In de, this message translates to:
+  /// **'Andere Adresse verwenden'**
+  String get emailChangeAddress;
+
+  /// No description provided for @emailChangeTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'E-Mail-Adresse ändern'**
+  String get emailChangeTitle;
+
+  /// No description provided for @emailChangeIntro.
+  ///
+  /// In de, this message translates to:
+  /// **'Die neue Adresse wird erst aktiv, wenn du den Link in der Bestätigungsmail öffnest. Bis dahin bleibt die bisherige Adresse gültig.'**
+  String get emailChangeIntro;
+
+  /// No description provided for @loginIdentifier.
+  ///
+  /// In de, this message translates to:
+  /// **'Anmeldename oder E-Mail'**
+  String get loginIdentifier;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In de, this message translates to:
+  /// **'Passwort vergessen?'**
+  String get forgotPassword;
+
+  /// No description provided for @forgotIntro.
+  ///
+  /// In de, this message translates to:
+  /// **'Gib deinen Anmeldenamen oder deine bestätigte E-Mail-Adresse ein. Wir senden dir einen Link, mit dem du ein neues Passwort festlegen kannst.'**
+  String get forgotIntro;
+
+  /// No description provided for @forgotSend.
+  ///
+  /// In de, this message translates to:
+  /// **'Link senden'**
+  String get forgotSend;
+
+  /// No description provided for @forgotSending.
+  ///
+  /// In de, this message translates to:
+  /// **'Wird gesendet …'**
+  String get forgotSending;
+
+  /// No description provided for @forgotFallback.
+  ///
+  /// In de, this message translates to:
+  /// **'Keine bestätigte E-Mail-Adresse oder kein Zugriff mehr darauf? Dann kann ein Administrator dein Passwort zurücksetzen.'**
+  String get forgotFallback;
+
+  /// No description provided for @backToLogin.
+  ///
+  /// In de, this message translates to:
+  /// **'Zurück zur Anmeldung'**
+  String get backToLogin;
+
+  /// No description provided for @inviteEmailHelp.
+  ///
+  /// In de, this message translates to:
+  /// **'Du erhältst einen Link zur Bestätigung.'**
+  String get inviteEmailHelp;
+
+  /// No description provided for @libraryAlbums.
+  ///
+  /// In de, this message translates to:
+  /// **'Alben'**
+  String get libraryAlbums;
+
+  /// No description provided for @libraryCatalog.
+  ///
+  /// In de, this message translates to:
+  /// **'Gesamter Katalog'**
+  String get libraryCatalog;
+
+  /// No description provided for @libraryClearFilter.
+  ///
+  /// In de, this message translates to:
+  /// **'Filter aufheben'**
+  String get libraryClearFilter;
+
+  /// No description provided for @libraryEmptyAll.
+  ///
+  /// In de, this message translates to:
+  /// **'Deine Bibliothek ist noch leer'**
+  String get libraryEmptyAll;
+
+  /// No description provided for @libraryEmptyAllHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Erstelle Playlists, speichere Alben oder folge Künstlern – alles erscheint hier gemeinsam.'**
+  String get libraryEmptyAllHint;
+
+  /// No description provided for @libraryEmptyPlaylists.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine eigenen Playlists'**
+  String get libraryEmptyPlaylists;
+
+  /// No description provided for @libraryEmptyAlbums.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine Alben gespeichert'**
+  String get libraryEmptyAlbums;
+
+  /// No description provided for @libraryEmptyAlbumsHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Tippe auf einer Album-Seite auf „Speichern“, um es hier zu sehen.'**
+  String get libraryEmptyAlbumsHint;
+
+  /// No description provided for @libraryEmptyArtists.
+  ///
+  /// In de, this message translates to:
+  /// **'Du folgst noch keinen Künstlern'**
+  String get libraryEmptyArtists;
+
+  /// No description provided for @libraryEmptyArtistsHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Tippe auf einer Künstlerseite auf „Folgen“.'**
+  String get libraryEmptyArtistsHint;
+
+  /// No description provided for @artist.
+  ///
+  /// In de, this message translates to:
+  /// **'Künstler'**
+  String get artist;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

@@ -6,6 +6,16 @@ import { COOKIE_ACCESS, COOKIE_CSRF, COOKIE_REFRESH, authOf } from '../plugins/a
 import { ApiError, unauthorized } from '../lib/errors.js';
 import { randomToken, sha256 } from '../lib/tokens.js';
 import { usernameKey } from '../lib/normalize.js';
+import {
+  FORGOT_NEUTRAL_MESSAGE,
+  checkToken,
+  confirmEmail,
+  pendingEmail,
+  requestEmailVerification,
+  requestPasswordReset,
+  resetPassword,
+  normalizeEmail,
+} from '../services/account.js';
 
 export default async function authRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -33,13 +43,26 @@ export default async function authRoutes(fastify: FastifyInstance) {
       hook: 'preHandler' as const,
       max: cfg.LOGIN_RATE_LIMIT_MAX,
       timeWindow: cfg.LOGIN_RATE_LIMIT_WINDOW,
-      // Schlüssel: IP + normalisierter Benutzername
+      // Schlüssel: IP + normalisierte Eingabe (Anmeldename oder E-Mail)
       keyGenerator: (req: { ip: string; body?: unknown }) => {
-        const u = (req.body as { username?: string } | undefined)?.username ?? '';
-        return `login:${req.ip}:${usernameKey(String(u)).slice(0, 64)}`;
+        const b = req.body as { username?: string; identifier?: string } | undefined;
+        return `login:${req.ip}:${usernameKey(String(b?.identifier ?? b?.username ?? '')).slice(0, 254)}`;
       },
     },
   };
+
+  /** Zusatzinfos für die Ersteinrichtung in App/Web */
+  async function setupInfo(userId: string) {
+    return { emailRequired: cfg.mailEnabled, passwordResetAvailable: cfg.mailEnabled, pendingEmail: await pendingEmail(app.db, userId) };
+  }
+
+  // Einlösen/Prüfen von Links: pro IP begrenzt (Tokens sind 256 Bit zufällig – Raten ist aussichtslos)
+  const tokenLimit = { rateLimit: { max: Math.max(10, cfg.FORGOT_RATE_LIMIT_MAX * 2), timeWindow: '15 minutes' } };
+
+  app.get('/config', { schema: { tags: ['Auth'], security: [] } }, async () => ({
+    emailRequired: cfg.mailEnabled,
+    passwordResetAvailable: cfg.mailEnabled,
+  }));
 
   app.post(
     '/login',
@@ -48,28 +71,34 @@ export default async function authRoutes(fastify: FastifyInstance) {
       schema: {
         tags: ['Auth'],
         security: [],
-        body: z.object({
-          username: z.string().min(1).max(64),
-          password: z.string().min(1).max(256),
-          client: z.enum(['app', 'web']).default('app'),
-          deviceName: z.string().max(100).optional(),
-        }),
+        body: z
+          .object({
+            /** Anmeldename oder bestätigte E-Mail-Adresse */
+            identifier: z.string().min(1).max(254).optional(),
+            /** Ältere Clients: nur Anmeldename */
+            username: z.string().min(1).max(254).optional(),
+            password: z.string().min(1).max(256),
+            client: z.enum(['app', 'web']).default('app'),
+            deviceName: z.string().max(100).optional(),
+          })
+          .refine((b) => !!(b.identifier ?? b.username), { message: 'Anmeldename oder E-Mail fehlt.' }),
       },
     },
     async (req, reply) => {
-      const { username, password, client, deviceName } = req.body;
-      const user = await authenticate(app.db, username, password);
+      const { identifier, username, password, client, deviceName } = req.body;
+      const user = await authenticate(app.db, (identifier ?? username)!, password);
       const tokens = await createSession(app.db, cfg, user, {
         clientType: client === 'web' ? 'WEB' : 'APP',
         deviceName,
         userAgent: req.headers['user-agent'],
       });
       req.log.info({ userId: user.id, client }, 'Anmeldung erfolgreich');
+      const setup = await setupInfo(user.id);
       if (client === 'web') {
         const csrfToken = setWebCookies(reply, tokens);
-        return { user: toUserDto(user), csrfToken, accessTokenExpiresAt: tokens.accessTokenExpiresAt };
+        return { user: toUserDto(user), setup, csrfToken, accessTokenExpiresAt: tokens.accessTokenExpiresAt };
       }
-      return { user: toUserDto(user), ...tokens };
+      return { user: toUserDto(user), setup, ...tokens };
     },
   );
 
@@ -105,7 +134,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     },
   );
 
-  app.post('/logout', { onRequest: app.requireUser, schema: { tags: ['Auth'] } }, async (req, reply) => {
+  app.post('/logout', { onRequest: app.requireUser, config: { allowDuringSetup: true }, schema: { tags: ['Auth'] } }, async (req, reply) => {
     const auth = authOf(req);
     await revokeSession(app.db, auth.sessionId, 'logout');
     clearWebCookies(reply);
@@ -113,11 +142,68 @@ export default async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Web-Session prüfen (für die Verwaltungsseite beim Laden)
-  app.get('/session', { onRequest: app.requireUser, schema: { tags: ['Auth'] } }, async (req) => {
+  app.get('/session', { onRequest: app.requireUser, config: { allowDuringSetup: true }, schema: { tags: ['Auth'] } }, async (req) => {
     const auth = authOf(req);
     const user = await app.db.user.findUniqueOrThrow({ where: { id: auth.userId } });
-    return { user: toUserDto(user), csrfToken: req.cookies[COOKIE_CSRF] ?? null };
+    return { user: toUserDto(user), setup: await setupInfo(user.id), csrfToken: req.cookies[COOKIE_CSRF] ?? null };
   });
+
+  // ───────── Passwort vergessen (Link per Mail an die bestätigte Adresse)
+  app.post(
+    '/password/forgot',
+    {
+      // pro IP begrenzt; pro Konto zusätzlich im Dienst (3/Stunde, 1/Minute)
+      config: { rateLimit: { max: cfg.FORGOT_RATE_LIMIT_MAX, timeWindow: '15 minutes', keyGenerator: (req: { ip: string }) => `forgot:${req.ip}` } },
+      schema: { tags: ['Auth'], security: [], body: z.object({ identifier: z.string().min(1).max(254) }) },
+    },
+    async (req) => {
+      // Nicht abwarten: gleiche Antwort und gleiches Zeitverhalten, egal ob das Konto existiert
+      void requestPasswordReset(app.db, cfg, app.mailer, req.body.identifier).catch((e: Error) =>
+        req.log.warn({ err: e.message }, 'Passwort-Reset-Mail konnte nicht gesendet werden'),
+      );
+      return { ok: true, message: FORGOT_NEUTRAL_MESSAGE };
+    },
+  );
+
+  app.post(
+    '/password/reset',
+    {
+      config: tokenLimit,
+      schema: { tags: ['Auth'], security: [], body: z.object({ token: z.string().min(20).max(200), password: z.string().min(1).max(256) }) },
+    },
+    async (req) => {
+      const user = await resetPassword(app.db, app.mailer, req.body.token, req.body.password);
+      req.log.info({ userId: user.id }, 'Passwort über Reset-Link geändert');
+      return { ok: true };
+    },
+  );
+
+  /** Link prüfen, ohne ihn zu verbrauchen (Webseite zeigt sonst gleich „abgelaufen“) */
+  app.post(
+    '/tokens/check',
+    {
+      config: { rateLimit: { max: Math.max(30, cfg.FORGOT_RATE_LIMIT_MAX * 2), timeWindow: '15 minutes' } },
+      schema: {
+        tags: ['Auth'],
+        security: [],
+        body: z.object({ token: z.string().min(20).max(200), kind: z.enum(['VERIFY_EMAIL', 'PASSWORD_RESET']) }),
+      },
+    },
+    async (req) => checkToken(app.db, req.body.token, req.body.kind),
+  );
+
+  app.post(
+    '/email/confirm',
+    {
+      config: tokenLimit,
+      schema: { tags: ['Auth'], security: [], body: z.object({ token: z.string().min(20).max(200) }) },
+    },
+    async (req) => {
+      const user = await confirmEmail(app.db, app.mailer, req.body.token);
+      req.log.info({ userId: user.id }, 'E-Mail-Adresse bestätigt');
+      return { ok: true, email: user.email };
+    },
+  );
 
   app.get(
     '/invites/:code',
@@ -144,11 +230,18 @@ export default async function authRoutes(fastify: FastifyInstance) {
           username: z.string().min(3).max(32),
           password: z.string().min(10).max(256),
           displayName: z.string().max(64).optional(),
+          email: z.string().max(254).optional(),
         }),
       },
     },
     async (req) => {
-      const { code, username, password, displayName } = req.body;
+      const { code, username, password, displayName, email } = req.body;
+      if (cfg.mailEnabled) {
+        if (!email?.trim()) throw new ApiError(400, 'EMAIL_REQUIRED', 'Bitte gib deine E-Mail-Adresse an.');
+        const taken = await app.db.user.findUnique({ where: { emailKey: normalizeEmail(email).key } });
+        if (taken) throw new ApiError(409, 'EMAIL_TAKEN', 'Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet.');
+        if (!displayName?.trim()) throw new ApiError(400, 'DISPLAY_NAME_REQUIRED', 'Bitte gib einen Anzeigenamen an.');
+      }
       const inv = await app.db.invite.findUnique({ where: { codeHash: sha256(code) } });
       if (!inv || inv.usedAt || inv.revokedAt || inv.expiresAt < new Date()) {
         throw new ApiError(410, 'INVITE_INVALID', 'Die Einladung ist ungültig oder abgelaufen.');
@@ -159,7 +252,19 @@ export default async function authRoutes(fastify: FastifyInstance) {
       try {
         const user = await createUser(app.db, { username, password, role: inv.role, displayName });
         await app.db.invite.update({ where: { id: inv.id }, data: { usedById: user.id } });
-        return { user: toUserDto(user) };
+        let emailSent = false;
+        let emailError: string | null = null;
+        if (cfg.mailEnabled && email) {
+          try {
+            await requestEmailVerification(app.db, cfg, app.mailer, user, email);
+            emailSent = true;
+          } catch (e) {
+            // Konto ist angelegt; die Adresse kann nach dem Anmelden erneut eingegeben werden
+            emailError = e instanceof ApiError ? e.message : 'Die Bestätigungsmail konnte nicht gesendet werden.';
+            req.log.warn({ userId: user.id, err: (e as Error).message }, 'Bestätigungsmail nach Einladung fehlgeschlagen');
+          }
+        }
+        return { user: toUserDto(user), emailSent, emailError };
       } catch (e) {
         await app.db.invite.update({ where: { id: inv.id }, data: { usedAt: null } });
         throw e;

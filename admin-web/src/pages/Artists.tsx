@@ -7,7 +7,23 @@ import { Cover, Empty, ErrorBox, Modal, Progress } from '../components/ui';
 import { CreateArtistModal } from '../components/ArtistPicker';
 import { ImageCropper, type Crop } from '../components/ImageCropper';
 
-type AdminArtist = Artist & { releaseCount: number; trackCount: number; folder: string | null };
+type Origin = 'MANUAL' | 'SCAN' | 'LEGACY';
+type AdminArtist = Artist & { releaseCount: number; trackCount: number; folder: string | null; origin: Origin };
+
+const ORIGIN_LABEL: Record<Origin, string> = { MANUAL: 'manuell', SCAN: 'automatisch (Scan)', LEGACY: 'Altbestand' };
+const ORIGIN_HINT: Record<Origin, string> = {
+  MANUAL: 'Bleibt auch ohne Veröffentlichungen bestehen.',
+  SCAN: 'Wird nach einem Scan entfernt, sobald keine Veröffentlichung mehr auf ihn verweist.',
+  LEGACY: 'Herkunft unklar (vor der Erfassung angelegt) – wird nicht automatisch entfernt.',
+};
+
+interface DeletePreview {
+  ownReleases: number;
+  ownTracks: number;
+  otherReleases: number;
+  otherTracks: number;
+  followers: number;
+}
 
 export function ArtistsPage() {
   const [q, setQ] = useState('');
@@ -16,6 +32,47 @@ export function ArtistsPage() {
   const list = useApi<Page<AdminArtist>>(`/admin/artists?limit=50&offset=${offset}${dq ? `&q=${encodeURIComponent(dq)}` : ''}`);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AdminArtist | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const setOrigin = async (a: AdminArtist, origin: Origin) => {
+    setError(null);
+    try {
+      await api(`/admin/artists/${a.id}`, { method: 'PATCH', body: { origin } });
+      list.reload();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+
+  const remove = async (a: AdminArtist) => {
+    setError(null);
+    setNotice(null);
+    try {
+      const p = await api<DeletePreview>(`/admin/artists/${a.id}/delete-preview`);
+      const lines = [`Künstler „${a.name}“ löschen?`, ''];
+      if (p.ownReleases)
+        lines.push(
+          `• ${p.ownReleases} eigene Veröffentlichung(en) mit ${p.ownTracks} Song(s) werden aus dem Katalog entfernt. Die Audiodateien werden in den Papierkorb-Ordner „.demonify-papierkorb“ im Musikverzeichnis verschoben (nicht endgültig gelöscht) und kehren beim Scan nicht zurück.`,
+        );
+      if (p.otherReleases)
+        lines.push(`• Auf ${p.otherReleases} fremden/gemeinsamen Veröffentlichung(en) (${p.otherTracks} Song(s)) wird nur die Mitwirkung entfernt – diese bleiben verfügbar.`);
+      if (p.followers) lines.push(`• ${p.followers} Person(en) folgen diesem Künstler.`);
+      if (!p.ownReleases && !p.otherReleases) lines.push('Der Künstler ist mit keiner Veröffentlichung verbunden.');
+      lines.push('', 'Playlists und Favoriten mit den entfernten Songs verlieren diese Einträge.');
+      if (!confirm(lines.join('\n'))) return;
+      const r = await api<{ removedReleases: number; removedTracks: number; movedFiles: number; trashFolder: string | null }>(`/admin/artists/${a.id}`, {
+        method: 'DELETE',
+      });
+      setNotice(
+        `„${a.name}“ gelöscht: ${r.removedReleases} Veröffentlichung(en), ${r.removedTracks} Song(s) entfernt` +
+          (r.trashFolder ? `; ${r.movedFiles} Datei(en) liegen in „${r.trashFolder}“.` : '.'),
+      );
+      list.reload();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
 
   return (
     <>
@@ -34,7 +91,8 @@ export function ArtistsPage() {
         }}
         style={{ marginBottom: 16, maxWidth: 420 }}
       />
-      <ErrorBox error={list.error} />
+      <ErrorBox error={error ?? list.error} />
+      {notice && <div className="alert success" style={{ marginBottom: 12 }}>{notice}</div>}
       {list.data && list.data.items.length === 0 && <Empty>Keine Künstler gefunden.</Empty>}
       <div className="card table-wrap">
         <table>
@@ -45,6 +103,7 @@ export function ArtistsPage() {
               <th>Veröffentlichungen</th>
               <th>Songs</th>
               <th>Ordner</th>
+              <th>Herkunft</th>
               <th></th>
             </tr>
           </thead>
@@ -64,10 +123,22 @@ export function ArtistsPage() {
                 <td className="dim ellipsis" style={{ maxWidth: 240 }}>
                   {a.folder ?? '–'}
                 </td>
+                <td title={ORIGIN_HINT[a.origin]}>
+                  <select value={a.origin} onChange={(e) => setOrigin(a, e.target.value as Origin)} aria-label="Herkunft">
+                    {a.origin === 'LEGACY' && <option value="LEGACY">{ORIGIN_LABEL.LEGACY}</option>}
+                    <option value="MANUAL">{ORIGIN_LABEL.MANUAL}</option>
+                    <option value="SCAN">{ORIGIN_LABEL.SCAN}</option>
+                  </select>
+                </td>
                 <td style={{ textAlign: 'right' }}>
-                  <button className="btn small" onClick={() => setEditing(a)}>
-                    Bearbeiten
-                  </button>
+                  <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                    <button className="btn small" onClick={() => setEditing(a)}>
+                      Bearbeiten
+                    </button>
+                    <button className="btn small danger" onClick={() => remove(a)}>
+                      Löschen
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

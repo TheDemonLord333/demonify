@@ -22,6 +22,7 @@ export function UsersPage() {
   const users = useApi<{ items: AdminUser[] }>('/admin/users');
   const invites = useApi<{ items: Invite[] }>('/admin/invites');
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<AdminUser | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export function UsersPage() {
           <thead>
             <tr>
               <th>Benutzer</th>
+              <th>E-Mail</th>
               <th>Rolle</th>
               <th>Status</th>
               <th>Sitzungen</th>
@@ -68,6 +70,17 @@ export function UsersPage() {
                 <td>
                   <strong>{u.username}</strong>
                   {u.displayName && <div className="dim">{u.displayName}</div>}
+                  {u.mustChangePassword && <div className="badge">Startpasswort</div>}
+                </td>
+                <td>
+                  {u.email ? (
+                    <span>
+                      {u.email} <span className="badge success">bestätigt</span>
+                    </span>
+                  ) : (
+                    <span className="dim">–</span>
+                  )}
+                  {u.pendingEmail && <div className="dim">wartet auf Bestätigung: {u.pendingEmail}</div>}
                 </td>
                 <td>
                   <span className={`badge ${u.role === 'ADMIN' ? 'primary' : ''}`}>{u.role === 'ADMIN' ? 'Admin' : 'Benutzer'}</span>
@@ -77,6 +90,9 @@ export function UsersPage() {
                 <td className="dim">{formatDate(u.lastLoginAt)}</td>
                 <td>
                   <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                    <button className="btn small" onClick={() => setEditing(u)}>
+                      Namen
+                    </button>
                     {u.id !== me?.id && (
                       <>
                         <button className="btn small" onClick={() => patch(u, { role: u.role === 'ADMIN' ? 'USER' : 'ADMIN' })}>
@@ -191,6 +207,16 @@ export function UsersPage() {
           }}
         />
       )}
+      {editing && (
+        <EditNamesModal
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            users.reload();
+          }}
+        />
+      )}
       {inviteOpen && <InviteModal onClose={() => { setInviteOpen(false); invites.reload(); }} />}
     </>
   );
@@ -201,11 +227,13 @@ function ResetPassword({ user, onError }: { user: AdminUser; onError: (e: string
     <button
       className="btn small ghost"
       onClick={async () => {
-        const pw = prompt(`Neues Passwort für ${user.username} (mind. 10 Zeichen):`);
+        const pw = prompt(
+          `Neues Startpasswort für ${user.username} (mind. 10 Zeichen).\n\nAusweichweg, z. B. ohne Zugriff auf die E-Mail-Adresse. Bei der nächsten Anmeldung muss ein eigenes Passwort festgelegt werden.`,
+        );
         if (!pw) return;
         try {
-          await api(`/admin/users/${user.id}`, { method: 'PATCH', body: { password: pw } });
-          alert('Passwort geändert. Alle Sitzungen des Benutzers wurden beendet.');
+          await api(`/admin/users/${user.id}`, { method: 'PATCH', body: { password: pw, requirePasswordChange: true } });
+          alert('Startpasswort gesetzt. Alle Sitzungen wurden beendet; bei der nächsten Anmeldung wird ein eigenes Passwort verlangt.');
         } catch (e) {
           onError(errorMessage(e));
         }
@@ -236,9 +264,10 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
           }
         }}
       >
+        <p className="muted">Bei der ersten Anmeldung mit dem Startpasswort führt die App durch die Ersteinrichtung: Anzeigename, eigenes Passwort und E-Mail-Bestätigung.</p>
         <label className="field">
-          Benutzername
-          <input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={3} maxLength={32} autoComplete="off" />
+          Anmeldename (ohne @)
+          <input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={3} maxLength={32} autoComplete="off" pattern="[^@\s]+" />
         </label>
         <label className="field">
           Anzeigename (optional)
@@ -311,6 +340,51 @@ function InviteModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       )}
+    </Modal>
+  );
+}
+
+/** Anmeldename und Anzeigename getrennt bearbeiten. Konto-ID, Bibliothek, Playlists und Favoriten bleiben unverändert. */
+function EditNamesModal({ user, onClose, onSaved }: { user: AdminUser; onClose: () => void; onSaved: () => void }) {
+  const [username, setUsername] = useState(user.username);
+  const [displayName, setDisplayName] = useState(user.displayName ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal title={`Namen von „${user.username}“`} onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError(null);
+          const body: Record<string, unknown> = {};
+          if (username.trim() !== user.username) body.username = username;
+          if ((displayName.trim() || null) !== user.displayName) body.displayName = displayName.trim() || null;
+          try {
+            if (Object.keys(body).length) await api(`/admin/users/${user.id}`, { method: 'PATCH', body });
+            onSaved();
+          } catch (err) {
+            setError(errorMessage(err));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label className="field">
+          Anmeldename (eindeutig, zum Anmelden)
+          <input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={3} maxLength={32} autoComplete="off" pattern="[^@\s]+" />
+        </label>
+        <label className="field">
+          Anzeigename (nur zur Darstellung, optional)
+          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={64} />
+        </label>
+        <p className="dim">Ändert sich der Anmeldename, meldet sich die Person künftig mit dem neuen Namen (oder ihrer bestätigten E-Mail) an. Bibliothek, Playlists und Favoriten bleiben erhalten.</p>
+        <ErrorBox error={error} />
+        <button className="btn primary" disabled={busy}>
+          Speichern
+        </button>
+      </form>
     </Modal>
   );
 }

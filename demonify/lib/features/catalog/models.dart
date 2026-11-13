@@ -351,11 +351,26 @@ class SearchResults {
 }
 
 class AppUser {
-  const AppUser({required this.id, required this.username, this.displayName, required this.isAdmin});
+  const AppUser({
+    required this.id,
+    required this.username,
+    this.displayName,
+    required this.isAdmin,
+    this.email,
+    this.emailVerified = false,
+    this.mustChangePassword = false,
+  });
   final String id;
   final String username;
   final String? displayName;
   final bool isAdmin;
+
+  /// Bestätigte E-Mail-Adresse (null, solange keine bestätigt ist)
+  final String? email;
+  final bool emailVerified;
+
+  /// Startpasswort → Ersteinrichtung erforderlich (vom Server erzwungen)
+  final bool mustChangePassword;
   String get label => (displayName?.isNotEmpty ?? false) ? displayName! : username;
 
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
@@ -363,6 +378,34 @@ class AppUser {
         username: j['username'] as String,
         displayName: j['displayName'] as String?,
         isAdmin: j['role'] == 'ADMIN',
+        email: j['email'] as String?,
+        emailVerified: j['emailVerified'] as bool? ?? false,
+        mustChangePassword: j['mustChangePassword'] as bool? ?? false,
       );
-  Map<String, dynamic> toJson() => {'id': id, 'username': username, 'displayName': displayName, 'role': isAdmin ? 'ADMIN' : 'USER'};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'username': username,
+        'displayName': displayName,
+        'role': isAdmin ? 'ADMIN' : 'USER',
+        'email': email,
+        'emailVerified': emailVerified,
+        'mustChangePassword': mustChangePassword,
+      };
+}
+
+/// Hinweise des Servers zur Ersteinrichtung
+class SetupInfo {
+  const SetupInfo({this.emailRequired = false, this.passwordResetAvailable = false, this.pendingEmail});
+  final bool emailRequired;
+  final bool passwordResetAvailable;
+
+  /// Adresse, deren Bestätigungslink gerade aussteht
+  final String? pendingEmail;
+
+  factory SetupInfo.fromJson(Map<String, dynamic>? j) => SetupInfo(
+        emailRequired: j?['emailRequired'] as bool? ?? false,
+        passwordResetAvailable: j?['passwordResetAvailable'] as bool? ?? false,
+        pendingEmail: j?['pendingEmail'] as String?,
+      );
+  SetupInfo withPending(String? email) => SetupInfo(emailRequired: emailRequired, passwordResetAvailable: passwordResetAvailable, pendingEmail: email);
 }

@@ -21,12 +21,14 @@ import { runLibraryScan } from './services/scanner.js';
 import { transcodeJob } from './services/transcoder.js';
 import { cleanupUploads } from './services/uploads.js';
 import { registerRoutes } from './routes/index.js';
+import { createMailer, type Mailer } from './services/mail.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
     config: AppConfig;
     db: Db;
     jobs: JobQueue;
+    mailer: Mailer;
   }
 }
 
@@ -47,7 +49,7 @@ export async function buildApp(config: AppConfig, db: Db, opts: { logger?: boole
             },
             serializers: {
               req(req) {
-                const url = (req.url ?? '').replace(/([?&](?:sig|exp|uid|sid|code)=)[^&]*/g, '$1…');
+                const url = (req.url ?? '').replace(/([?&](?:sig|exp|uid|sid|code|token)=)[^&]*/g, '$1…');
                 return { method: req.method, url, remoteAddress: req.ip };
               },
             },
@@ -74,6 +76,7 @@ export async function buildApp(config: AppConfig, db: Db, opts: { logger?: boole
   jobs.register('TRANSCODE', transcodeJob);
   jobs.register('UPLOAD_CLEANUP', async () => cleanupUploads(db, config));
   app.decorate('jobs', jobs);
+  app.decorate('mailer', createMailer(config, app.log));
 
   await app.register(cookie);
   await app.register(helmet, {

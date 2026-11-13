@@ -8,6 +8,7 @@ import { escapeLike, normalizeQuery, searchText } from '../../lib/normalize.js';
 import { createUniqueDir, ensureDir, placeFileExclusive, resolveInside, sanitizeSegment, toRel } from '../../lib/fsnames.js';
 import { renderImageVariant } from '../../lib/media.js';
 import { createArtist, registerImage, similarArtists, validateArtistName } from '../../services/catalog.js';
+import { artistDeletePreview, deleteArtist } from '../../services/cleanup.js';
 import { releaseInclude, toArtistDto, toReleaseDto, toTrackDto, trackInclude, trackOrder } from '../../services/dto.js';
 import { uploadFile } from '../../services/uploads.js';
 import { page, paging } from '../catalog.js';
@@ -94,7 +95,7 @@ export default async function adminCatalogRoutes(fastify: FastifyInstance) {
         app.db.artist.count({ where }),
       ]);
       return page(
-        items.map((a) => ({ ...toArtistDto(a), releaseCount: a._count.releases, trackCount: a._count.tracks, folder: a.folderRelPath })),
+        items.map((a) => ({ ...toArtistDto(a), releaseCount: a._count.releases, trackCount: a._count.tracks, folder: a.folderRelPath, origin: a.origin })),
         offset,
         limit,
         total,
@@ -108,7 +109,23 @@ export default async function adminCatalogRoutes(fastify: FastifyInstance) {
     return reply.code(201).send({ artist: toArtistDto(artist), similar: similar.map(toArtistDto) });
   });
 
-  app.patch('/artists/:id', { schema: { tags: ['Verwaltung'], params: idParam, body: z.object({ name: z.string().min(1).max(200) }) } }, async (req) => {
+  app.patch(
+    '/artists/:id',
+    {
+      schema: {
+        tags: ['Verwaltung'],
+        params: idParam,
+        body: z.object({ name: z.string().min(1).max(200).optional(), origin: z.enum(['MANUAL', 'SCAN']).optional() }),
+      },
+    },
+    async (req) => {
+    if (req.body.origin) {
+      // Herkunft einstufen: SCAN = darf nach einem Scan automatisch entfernt werden, MANUAL = bleibt
+      const a = await app.db.artist.update({ where: { id: req.params.id }, data: { origin: req.body.origin } }).catch(() => null);
+      if (!a) throw notFound('Künstler nicht gefunden.');
+      if (!req.body.name) return { artist: { ...toArtistDto(a), origin: a.origin } };
+    }
+    if (!req.body.name) throw badRequest('Keine Änderung angegeben.');
     const { name, key } = validateArtistName(req.body.name);
     const other = await app.db.artist.findUnique({ where: { nameKey: key } });
     if (other && other.id !== req.params.id) {
@@ -116,19 +133,25 @@ export default async function adminCatalogRoutes(fastify: FastifyInstance) {
     }
     try {
       const a = await app.db.artist.update({ where: { id: req.params.id }, data: { name, nameKey: key, searchText: searchText(name) } });
-      return { artist: toArtistDto(a) };
+      return { artist: { ...toArtistDto(a), origin: a.origin } };
     } catch (e) {
       if (isUniqueViolation(e)) throw conflict('Ein Künstler mit diesem Namen wurde gerade angelegt.', undefined, 'ARTIST_EXISTS');
       throw e;
     }
-  });
+    },
+  );
 
+  /** Was passiert beim Löschen? (für die Sicherheitsabfrage) */
+  app.get('/artists/:id/delete-preview', { schema: { tags: ['Verwaltung'], params: idParam } }, async (req) => artistDeletePreview(app.db, req.params.id));
+
+  /**
+   * Künstler löschen: eigene Veröffentlichungen werden aus dem Katalog entfernt (Audiodateien → Papierkorb-Ordner),
+   * fremde/gemeinsame Veröffentlichungen bleiben, nur die Mitwirkung wird entfernt.
+   */
   app.delete('/artists/:id', { schema: { tags: ['Verwaltung'], params: idParam } }, async (req) => {
-    const a = await app.db.artist.findUnique({ where: { id: req.params.id }, include: { _count: { select: { releases: true, tracks: true } } } });
-    if (!a) throw notFound('Künstler nicht gefunden.');
-    if (a._count.releases || a._count.tracks) throw conflict('Künstler mit Veröffentlichungen oder Songs kann nicht gelöscht werden.');
-    await app.db.artist.delete({ where: { id: a.id } });
-    return { ok: true };
+    const res = await deleteArtist(app.db, cfg, req.params.id, req.log);
+    req.log.info({ artistId: req.params.id, ...res }, 'Künstler gelöscht');
+    return { ok: true, ...res };
   });
 
   /** Profilbild hochladen/ersetzen, optional zuschneiden (Pixelkoordinaten im Originalbild). */

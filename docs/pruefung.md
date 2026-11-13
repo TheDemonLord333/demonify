@@ -30,6 +30,50 @@ Kein Zugriff auf den Zielserver, Cloudflare, Android-SDK oder Xcode.
 - Range-Anfragen (Teilbereich, Suffix, 416), X-Accel-Pfad.
 - Live-Suche: ab 1 Buchstaben, über Künstlernamen und Features, mehrere Wörter, Pagination, leere Ergebnisse.
 
+## Update: Katalogabgleich, Bibliothek, Konten/E-Mail, Autoplay, Sperrbildschirm-Cover
+
+Automatisiert geprüft (Backend-Integrationstests gegen echtes PostgreSQL, Flutter-Unit-/Widget-Tests):
+
+- **Scan-Abgleich:** gelöschte Datei → Track weg, Album mit Rest bleibt; letzte Datei weg → Veröffentlichung weg; Prüffall
+  Testartist/Execute (Kollaboration, beide automatisch erkannt → verschwinden); mitwirkender Künstler bleibt, solange eine
+  andere Veröffentlichung auf ihn verweist; manuell angelegter Künstler bleibt; wiederholter Scan ändert nichts;
+  nicht lesbarer Unterordner → nichts gelöscht, nur „nicht verfügbar“, danach wiederhergestellt; leeres Musikverzeichnis → Abbruch ohne Löschung.
+- **Künstler löschen:** Vorschau, nur Admin, eigene Veröffentlichung → Papierkorb-Ordner, Gastauftritt bleibt verfügbar,
+  Hauptkünstler bleibt korrekt, nächster Scan holt nichts zurück.
+- **Konten:** Startpasswort (Server sperrt alles außer Ersteinrichtung, gleiches Passwort/kein Anzeigename/falsches
+  Startpasswort abgelehnt, altes Passwort danach ungültig); bestehendes Konto ohne E-Mail (Login per Anmeldename,
+  Nachtragen, vor Bestätigung kein Login per E-Mail, danach beide Eingaben inkl. Groß-/Kleinschreibung und Leerzeichen);
+  E-Mail-Eindeutigkeit; Anmeldename ohne `@`; Einladung mit E-Mail; Admin ändert Anmelde-/Anzeigename getrennt
+  (Favoriten bleiben am Konto); manueller Admin-Reset verlangt Passwortwechsel.
+- **Passwort vergessen:** gleiche Antwort für unbekannte Konten, unbestätigte Adressen und echte Konten; Mail nur an
+  bestätigte Adresse; Limit pro Konto; parallele Einlösung genau einmal erfolgreich; bereits verwendeter, abgelaufener und
+  durch einen späteren Reset entwerteter Link → 410; alte Sitzungen beendet; Bestätigungsmail.
+- **Browser (Playwright, iPhone-13-Viewport, Backend mit `MAIL_TRANSPORT=log`):** E-Mail bestätigen → Passwort vergessen
+  per E-Mail → neues Passwort → derselbe Link erneut abgelehnt → Anmeldung der Verwaltung per E-Mail; keine horizontale Scrollleiste.
+- **Bibliothek (Widget-Test):** öffnet ohne Filter mit allen drei Kategorien; Alben/Künstler/Playlists zeigen nur ihre
+  Kategorie, aktiver Chip hervorgehoben, erneutes Antippen bzw. × → Gesamtansicht; leere Kategorien mit Hinweis.
+- **Autoplay:** Ende Single/Album → ähnlicher Titel (nie der beendete); Song wiederholen und Wiederholen haben Vorrang;
+  kein Kandidat → Ende; Pause, Stopp, Wiedergabefehler → kein Autoplay; neue Wiedergabe während der Suche wird nicht überschrieben.
+  Server: nur verfügbare Titel, Genre/Künstler, `exclude`, leere Liste ohne Treffer.
+- **Sperrbildschirm-Cover (Logik):** lokales Bild sofort; Veröffentlichungscover ohne Songcover; erneuter Versuch nach
+  Fehler; verspätetes Bild nach schnellem Titelwechsel nicht beim neuen Titel; begrenzte Versuche.
+
+### Offen: Gerätetest iPhone (Sperrbildschirm-Cover)
+
+Nicht auf einem echten iPhone geprüft. Schritte:
+
+1. App mit leerem Cover-Cache: App löschen und neu installieren (oder Einstellungen → Konto → Abmelden → Downloads löschen, App neu starten).
+2. Album mit Songcover (z. B. aus dem Funktionstest unten) abspielen, Gerät sperren → Sperrbildschirm zeigt bei Track 2 das
+   Songcover, bei Track 1 das Albumcover. Innerhalb weniger Sekunden, auch wenn die erste Anzeige ohne Bild kam.
+3. Am Sperrbildschirm mehrmals schnell „Weiter“/„Zurück“ tippen → jedes Mal passt das Cover zum angezeigten Titel; kein Bild „springt“ zum falschen Titel.
+4. Kurz Flugmodus während eines Titelwechsels, dann wieder online → Cover erscheint nachträglich (Wiederholung).
+5. Album herunterladen, App beenden, Flugmodus an, App starten, Download-Titel spielen, sperren → Cover sofort sichtbar.
+6. Control Center und (falls vorhanden) CarPlay/Bluetooth-Anzeige prüfen.
+
+Ebenfalls offen auf Geräten: Ersteinrichtung und E-Mail-Bestätigung in der App (Rückkehr aus dem Browser prüft automatisch),
+Autoplay hörbar am Ende eines Albums, Bibliotheksfilter. Android-/iOS-Builds wurden in dieser Umgebung nicht erneut erzeugt
+(keine neuen Plugins/Abhängigkeiten in der App).
+
 ## Nicht geprüft / offene Punkte
 
 - **Android-Build und Geräte-Tests:** Android-SDK-Download war in der Umgebung gesperrt → kein `flutter build apk`. Die Gradle-/Manifest-Konfiguration ist vorbereitet, aber ungetestet.
