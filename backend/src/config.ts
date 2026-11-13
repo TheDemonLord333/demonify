@@ -120,6 +120,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (c.MAIL_TRANSPORT === 'smtp' && (!c.SMTP_HOST || !c.MAIL_FROM)) {
     throw new Error('MAIL_TRANSPORT=smtp benötigt SMTP_HOST und MAIL_FROM.');
   }
+  if (c.MAIL_TRANSPORT === 'smtp' && c.SMTP_USER && !c.SMTP_PASSWORD) {
+    throw new Error('SMTP_USER ist gesetzt, aber SMTP_PASSWORD fehlt oder ist leer (bei Brevo: der SMTP-Schlüssel).');
+  }
   if ((c.MAIL_TRANSPORT === 'log' || c.MAIL_TRANSPORT === 'memory') && c.NODE_ENV === 'production') {
     throw new Error(`MAIL_TRANSPORT=${c.MAIL_TRANSPORT} ist nur für Entwicklung/Tests gedacht (Links mit Token würden im Log landen).`);
   }

@@ -77,7 +77,7 @@ export async function requestEmailVerification(db: Db, config: AppConfig, mailer
       expiresAt: new Date(Date.now() + config.EMAIL_VERIFY_TTL_HOURS * 3600_000),
     },
   });
-  await mailer.send(
+  const sendVerification = mailer.send(
     composeMail(
       email,
       'Demonify: E-Mail-Adresse bestätigen',
@@ -90,6 +90,15 @@ export async function requestEmailVerification(db: Db, config: AppConfig, mailer
       'Du hast diese Adresse nicht angegeben? Dann ignoriere diese Nachricht – ohne Bestätigung passiert nichts.',
     ),
   );
+  try {
+    await sendVerification;
+  } catch (e) {
+    // Link ist nie angekommen → nicht als „wartet auf Bestätigung“ anzeigen
+    await db.emailToken.updateMany({ where: { userId: user.id, kind: 'VERIFY_EMAIL', usedAt: null }, data: { usedAt: new Date() } });
+    throw new ApiError(502, 'MAIL_SEND_FAILED', 'Die Bestätigungsmail konnte nicht gesendet werden. Bitte später erneut versuchen oder die Administration informieren.', {
+      reason: (e as Error).message.slice(0, 200),
+    });
+  }
   return { pendingEmail: email };
 }
 
