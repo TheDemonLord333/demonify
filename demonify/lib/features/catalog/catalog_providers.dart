@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../auth/auth_controller.dart';
+import '../library/library_model.dart';
 import 'models.dart';
 
 ApiClient requireApi(Ref ref) {
@@ -80,6 +81,30 @@ final artistsProvider = FutureProvider.autoDispose.family<List<ArtistRef>, bool>
     offset = res.nextOffset;
   }
   return out;
+});
+
+/// Persönliche Bibliothek als eine Liste: Playlists, gespeicherte Veröffentlichungen, gefolgte Künstler.
+/// Gesamtansicht und alle Filter der Bibliothek lesen dieselben Einträge.
+final libraryEntriesProvider = FutureProvider.autoDispose<List<LibraryEntry>>((ref) async {
+  final api = requireApi(ref);
+  Future<List<Map<String, dynamic>>> all(String path) async {
+    final out = <Map<String, dynamic>>[];
+    int? offset = 0;
+    while (offset != null && out.length < 5000) {
+      final r = await api.get(path, query: {'offset': offset, 'limit': 100});
+      out.addAll((r['items'] as List).cast<Map<String, dynamic>>());
+      offset = (r['nextOffset'] as num?)?.toInt();
+    }
+    return out;
+  }
+
+  final (playlists, releases, artists) = await (ref.watch(playlistsProvider.future), all('library/releases'), all('library/artists')).wait;
+  DateTime? ts(Object? v) => v is String ? DateTime.tryParse(v) : null;
+  return [
+    ...playlists.map(PlaylistLibraryEntry.new),
+    ...releases.map((j) => ReleaseLibraryEntry(Release.fromJson(j), ts(j['savedAt']))),
+    ...artists.map((j) => ArtistLibraryEntry(ArtistRef.fromJson(j), ts(j['followedAt']))),
+  ];
 });
 
 final favoriteTracksProvider = FutureProvider.autoDispose<List<Track>>((ref) async {
@@ -198,6 +223,7 @@ class LibraryActions {
     }
     _ref.invalidate(releaseDetailProvider(releaseId));
     _ref.invalidate(releasesProvider);
+    _ref.invalidate(libraryEntriesProvider);
   }
 
   Future<void> setFollowing(String artistId, bool follow) async {
@@ -208,6 +234,7 @@ class LibraryActions {
     }
     _ref.invalidate(artistDetailProvider(artistId));
     _ref.invalidate(artistsProvider);
+    _ref.invalidate(libraryEntriesProvider);
   }
 }
 

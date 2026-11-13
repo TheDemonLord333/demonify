@@ -24,8 +24,7 @@ class AuthSession {
   bool get needsEmailSetup => !offline && setup.emailRequired && !user.emailVerified;
   bool get needsSetup => needsPasswordSetup || needsEmailSetup;
 
-  AuthSession copyWith({AppUser? user, SetupInfo? setup}) =>
-      AuthSession(api: api, user: user ?? this.user, offline: offline, setup: setup ?? this.setup);
+  AuthSession copyWith({AppUser? user, SetupInfo? setup}) => AuthSession(api: api, user: user ?? this.user, offline: offline, setup: setup ?? this.setup);
 }
 
 final secureStoreProvider = Provider<SecureStore>((ref) => SecureStore());
@@ -65,14 +64,14 @@ class AuthController extends AsyncNotifier<AuthSession?> {
   }
 
   ApiClient _makeClient(StoredSession s) => ApiClient(
-        session: s,
-        store: _store,
-        onSessionExpired: () {
-          // Refresh-Token ungültig/widerrufen → abmelden (Downloads bleiben, bis der Benutzer entscheidet)
-          _store.clear();
-          state = const AsyncData(null);
-        },
-      );
+    session: s,
+    store: _store,
+    onSessionExpired: () {
+      // Refresh-Token ungültig/widerrufen → abmelden (Downloads bleiben, bis der Benutzer entscheidet)
+      _store.clear();
+      state = const AsyncData(null);
+    },
+  );
 
   /// Passwort der letzten Anmeldung – nur im Arbeitsspeicher, damit die Ersteinrichtung
   /// (Startpasswort, E-Mail mit erneuter Authentifizierung) nicht erneut danach fragen muss.
@@ -82,12 +81,7 @@ class AuthController extends AsyncNotifier<AuthSession?> {
   /// [identifier]: Anmeldename oder bestätigte E-Mail-Adresse
   Future<void> login({required String server, required String identifier, required String password}) async {
     final apiBase = AppConfig.normalizeApiBase(server);
-    final (session, setup) = await ApiClient.login(
-      apiBase: apiBase,
-      identifier: identifier.trim(),
-      password: password,
-      deviceName: _deviceName(),
-    );
+    final (session, setup) = await ApiClient.login(apiBase: apiBase, identifier: identifier.trim(), password: password, deviceName: _deviceName());
     await AppConfig.saveApiBase(apiBase);
     await _store.write(session);
     final user = AppUser.fromJson(session.user);
@@ -110,10 +104,12 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     if (api == null) return;
     final r = await api.post('me/setup', {'displayName': displayName, 'currentPassword': currentPassword, 'newPassword': newPassword});
     _recentPassword = newPassword;
-    _update((s) => s.copyWith(
-          user: AppUser.fromJson((r['user'] as Map).cast<String, dynamic>()),
-          setup: SetupInfo.fromJson((r['setup'] as Map?)?.cast<String, dynamic>()),
-        ));
+    _update(
+      (s) => s.copyWith(
+        user: AppUser.fromJson((r['user'] as Map).cast<String, dynamic>()),
+        setup: SetupInfo.fromJson((r['setup'] as Map?)?.cast<String, dynamic>()),
+      ),
+    );
   }
 
   /// E-Mail erfassen/ändern (Passwort zur Bestätigung). Aktiv erst nach Klick auf den Link in der Mail.
@@ -132,10 +128,12 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     final api = state.value?.api;
     if (api == null) return;
     final me = await api.get('me');
-    _update((s) => s.copyWith(
-          user: AppUser.fromJson((me['user'] as Map).cast<String, dynamic>()),
-          setup: SetupInfo.fromJson((me['setup'] as Map?)?.cast<String, dynamic>()),
-        ));
+    _update(
+      (s) => s.copyWith(
+        user: AppUser.fromJson((me['user'] as Map).cast<String, dynamic>()),
+        setup: SetupInfo.fromJson((me['setup'] as Map?)?.cast<String, dynamic>()),
+      ),
+    );
   }
 
   /// Anzeigename selbst ändern (Anmeldename bleibt)

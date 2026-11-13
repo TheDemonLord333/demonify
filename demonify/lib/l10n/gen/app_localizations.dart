@@ -2030,6 +2030,72 @@ abstract class S {
   /// In de, this message translates to:
   /// **'Du erhältst einen Link zur Bestätigung.'**
   String get inviteEmailHelp;
+
+  /// No description provided for @libraryAlbums.
+  ///
+  /// In de, this message translates to:
+  /// **'Alben'**
+  String get libraryAlbums;
+
+  /// No description provided for @libraryCatalog.
+  ///
+  /// In de, this message translates to:
+  /// **'Gesamter Katalog'**
+  String get libraryCatalog;
+
+  /// No description provided for @libraryClearFilter.
+  ///
+  /// In de, this message translates to:
+  /// **'Filter aufheben'**
+  String get libraryClearFilter;
+
+  /// No description provided for @libraryEmptyAll.
+  ///
+  /// In de, this message translates to:
+  /// **'Deine Bibliothek ist noch leer'**
+  String get libraryEmptyAll;
+
+  /// No description provided for @libraryEmptyAllHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Erstelle Playlists, speichere Alben oder folge Künstlern – alles erscheint hier gemeinsam.'**
+  String get libraryEmptyAllHint;
+
+  /// No description provided for @libraryEmptyPlaylists.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine eigenen Playlists'**
+  String get libraryEmptyPlaylists;
+
+  /// No description provided for @libraryEmptyAlbums.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine Alben gespeichert'**
+  String get libraryEmptyAlbums;
+
+  /// No description provided for @libraryEmptyAlbumsHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Tippe auf einer Album-Seite auf „Speichern“, um es hier zu sehen.'**
+  String get libraryEmptyAlbumsHint;
+
+  /// No description provided for @libraryEmptyArtists.
+  ///
+  /// In de, this message translates to:
+  /// **'Du folgst noch keinen Künstlern'**
+  String get libraryEmptyArtists;
+
+  /// No description provided for @libraryEmptyArtistsHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Tippe auf einer Künstlerseite auf „Folgen“.'**
+  String get libraryEmptyArtistsHint;
+
+  /// No description provided for @artist.
+  ///
+  /// In de, this message translates to:
+  /// **'Künstler'**
+  String get artist;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

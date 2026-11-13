@@ -1076,4 +1076,40 @@ class SDe extends S {
 
   @override
   String get inviteEmailHelp => 'Du erhältst einen Link zur Bestätigung.';
+
+  @override
+  String get libraryAlbums => 'Alben';
+
+  @override
+  String get libraryCatalog => 'Gesamter Katalog';
+
+  @override
+  String get libraryClearFilter => 'Filter aufheben';
+
+  @override
+  String get libraryEmptyAll => 'Deine Bibliothek ist noch leer';
+
+  @override
+  String get libraryEmptyAllHint =>
+      'Erstelle Playlists, speichere Alben oder folge Künstlern – alles erscheint hier gemeinsam.';
+
+  @override
+  String get libraryEmptyPlaylists => 'Noch keine eigenen Playlists';
+
+  @override
+  String get libraryEmptyAlbums => 'Noch keine Alben gespeichert';
+
+  @override
+  String get libraryEmptyAlbumsHint =>
+      'Tippe auf einer Album-Seite auf „Speichern“, um es hier zu sehen.';
+
+  @override
+  String get libraryEmptyArtists => 'Du folgst noch keinen Künstlern';
+
+  @override
+  String get libraryEmptyArtistsHint =>
+      'Tippe auf einer Künstlerseite auf „Folgen“.';
+
+  @override
+  String get artist => 'Künstler';
 }

@@ -23,12 +23,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   void initState() {
     super.initState();
     // Zurück aus dem Browser/Mailprogramm → Bestätigung automatisch prüfen
-    _lifecycle = AppLifecycleListener(onResume: () {
-      final s = ref.read(authProvider).value;
-      if (s != null && s.needsEmailSetup && s.setup.pendingEmail != null) {
-        ref.read(authProvider.notifier).refreshAccount().catchError((_) {});
-      }
-    });
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        final s = ref.read(authProvider).value;
+        if (s != null && s.needsEmailSetup && s.setup.pendingEmail != null) {
+          ref.read(authProvider.notifier).refreshAccount().catchError((_) {});
+        }
+      },
+    );
   }
 
   @override
@@ -48,9 +50,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       appBar: AppBar(
         title: Text(s.setupTitle),
         automaticallyImplyLeading: false,
-        actions: [
-          TextButton(onPressed: () => ref.read(authProvider.notifier).logout(), child: Text(s.logout)),
-        ],
+        actions: [TextButton(onPressed: () => ref.read(authProvider.notifier).logout(), child: Text(s.logout))],
       ),
       body: SafeArea(
         child: Center(
@@ -108,11 +108,7 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
       _error = null;
     });
     try {
-      await auth.completeSetup(
-        displayName: _name.text.trim(),
-        currentPassword: auth.recentPassword ?? _current.text,
-        newPassword: _pw.text,
-      );
+      await auth.completeSetup(displayName: _name.text.trim(), currentPassword: auth.recentPassword ?? _current.text, newPassword: _pw.text);
     } catch (e) {
       if (mounted) setState(() => _error = errorText(e));
     } finally {
@@ -216,10 +212,10 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
   }
 
   Future<void> _send(String email) => _run(() async {
-        final auth = ref.read(authProvider.notifier);
-        await auth.requestEmail(email: email.trim(), password: auth.recentPassword ?? _pw.text);
-        if (mounted) setState(() => _editing = false);
-      });
+    final auth = ref.read(authProvider.notifier);
+    await auth.requestEmail(email: email.trim(), password: auth.recentPassword ?? _pw.text);
+    if (mounted) setState(() => _editing = false);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -269,8 +265,7 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
                         },
                   child: _busy ? const _Spinner() : Text(s.emailSendLink),
                 ),
-                if (pending != null)
-                  TextButton(onPressed: _busy ? null : () => setState(() => _editing = false), child: Text(s.cancel)),
+                if (pending != null) TextButton(onPressed: _busy ? null : () => setState(() => _editing = false), child: Text(s.cancel)),
               ],
             ),
           )
@@ -286,17 +281,21 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
               ],
             ),
           ),
-          if (_info != null) Padding(padding: const EdgeInsets.only(top: DSpacing.m), child: Text(_info!, style: const TextStyle(color: DColors.textMuted))),
+          if (_info != null)
+            Padding(
+              padding: const EdgeInsets.only(top: DSpacing.m),
+              child: Text(_info!, style: const TextStyle(color: DColors.textMuted)),
+            ),
           if (_error != null) _ErrorText(_error!),
           const SizedBox(height: DSpacing.xl),
           FilledButton(
             onPressed: _busy
                 ? null
                 : () => _run(() async {
-                      await ref.read(authProvider.notifier).refreshAccount();
-                      final now = ref.read(authProvider).value;
-                      if (mounted && now != null && now.needsEmailSetup) setState(() => _info = s.emailNotYetConfirmed);
-                    }),
+                    await ref.read(authProvider.notifier).refreshAccount();
+                    final now = ref.read(authProvider).value;
+                    if (mounted && now != null && now.needsEmailSetup) setState(() => _info = s.emailNotYetConfirmed);
+                  }),
             child: _busy ? const _Spinner() : Text(s.emailIConfirmed),
           ),
           const SizedBox(height: DSpacing.s),
@@ -313,9 +312,9 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
             onPressed: _busy
                 ? null
                 : () => setState(() {
-                      _editing = true;
-                      _email.text = pending;
-                    }),
+                    _editing = true;
+                    _email.text = pending;
+                  }),
             child: Text(needsPassword ? s.emailResendOrChange : s.emailChangeAddress),
           ),
         ],
@@ -329,14 +328,13 @@ class _ErrorText extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: DSpacing.m),
-        child: Text(text, style: const TextStyle(color: DColors.danger)),
-      );
+    padding: const EdgeInsets.only(top: DSpacing.m),
+    child: Text(text, style: const TextStyle(color: DColors.danger)),
+  );
 }
 
 class _Spinner extends StatelessWidget {
   const _Spinner();
   @override
-  Widget build(BuildContext context) =>
-      const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white));
+  Widget build(BuildContext context) => const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white));
 }

@@ -18,11 +18,11 @@ import 'settings_controller.dart';
 final packageInfoProvider = FutureProvider<PackageInfo>((ref) => PackageInfo.fromPlatform());
 
 String qualityLabel(BuildContext c, AudioQuality q) => switch (q) {
-      AudioQuality.original => c.s.qualityOriginal,
-      AudioQuality.high => c.s.qualityHigh,
-      AudioQuality.normal => c.s.qualityNormal,
-      AudioQuality.low => c.s.qualityLow,
-    };
+  AudioQuality.original => c.s.qualityOriginal,
+  AudioQuality.high => c.s.qualityHigh,
+  AudioQuality.normal => c.s.qualityNormal,
+  AudioQuality.low => c.s.qualityLow,
+};
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -56,19 +56,14 @@ class SettingsScreen extends ConsumerWidget {
             ListTile(
               leading: Icon(session?.user.emailVerified == true ? Icons.mark_email_read_rounded : Icons.alternate_email_rounded),
               title: Text(s.email),
-              subtitle: Text([
-                session?.user.email ?? s.emailNone,
-                if (session?.setup.pendingEmail != null) s.emailPending(session!.setup.pendingEmail!),
-              ].join('\n')),
+              subtitle: Text(
+                [session?.user.email ?? s.emailNone, if (session?.setup.pendingEmail != null) s.emailPending(session!.setup.pendingEmail!)].join('\n'),
+              ),
               trailing: const Icon(Icons.edit_rounded, size: 20),
               onTap: () => _changeEmail(context, ref),
             ),
           ],
-          ListTile(
-            leading: const Icon(Icons.dns_rounded),
-            title: Text(s.serverAddress),
-            subtitle: Text(session?.api.origin ?? '–'),
-          ),
+          ListTile(leading: const Icon(Icons.dns_rounded), title: Text(s.serverAddress), subtitle: Text(session?.api.origin ?? '–')),
           if (session?.offline == true)
             ListTile(
               leading: const Icon(Icons.cloud_off_rounded, color: DColors.warning),
@@ -237,7 +232,10 @@ class SettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final q in AudioQuality.values) RadioListTile<AudioQuality>(value: q, title: Text(qualityLabel(c, q))),
-            Padding(padding: const EdgeInsets.all(16), child: Text(c.s.qualityHint, style: const TextStyle(color: DColors.textMuted))),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(c.s.qualityHint, style: const TextStyle(color: DColors.textMuted)),
+            ),
           ],
         ),
       ),
@@ -251,9 +249,12 @@ class _Header extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(DSpacing.l, DSpacing.xl, DSpacing.l, DSpacing.s),
-        child: Text(text, style: const TextStyle(color: DColors.primaryHover, fontWeight: FontWeight.w700)),
-      );
+    padding: const EdgeInsets.fromLTRB(DSpacing.l, DSpacing.xl, DSpacing.l, DSpacing.s),
+    child: Text(
+      text,
+      style: const TextStyle(color: DColors.primaryHover, fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 /// Konto endgültig löschen: Erklärung + Passwortbestätigung; danach lokale Daten dieses Kontos entfernen

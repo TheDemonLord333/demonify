@@ -77,6 +77,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/home', pageBuilder: (c, s) => fade(const HomeScreen(), s)),
           GoRoute(path: '/search', pageBuilder: (c, s) => fade(const SearchScreen(), s)),
           GoRoute(path: '/library', pageBuilder: (c, s) => fade(const LibraryScreen(), s)),
+          GoRoute(path: '/catalog', builder: (c, s) => const CatalogBrowseScreen()),
           GoRoute(path: '/release/:id', builder: (c, s) => ReleaseScreen(id: s.pathParameters['id']!)),
           GoRoute(path: '/artist/:id', builder: (c, s) => ArtistScreen(id: s.pathParameters['id']!)),
           GoRoute(path: '/playlist/:id', builder: (c, s) => PlaylistScreen(id: s.pathParameters['id']!)),

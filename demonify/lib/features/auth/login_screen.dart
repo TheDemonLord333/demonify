@@ -90,7 +90,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: DSpacing.xl),
                         Text('Demonify', textAlign: TextAlign.center, style: Theme.of(context).textTheme.displaySmall),
                         const SizedBox(height: DSpacing.xs),
-                        Text(s.loginSubtitle, textAlign: TextAlign.center, style: const TextStyle(color: DColors.textMuted)),
+                        Text(
+                          s.loginSubtitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: DColors.textMuted),
+                        ),
                         const SizedBox(height: DSpacing.xxl),
                         TextFormField(
                           controller: _user,
@@ -170,12 +174,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _showForgot(BuildContext context) => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        showDragHandle: true,
-        builder: (ctx) => _ForgotSheet(server: _server.text, initial: _user.text.trim()),
-      );
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (ctx) => _ForgotSheet(server: _server.text, initial: _user.text.trim()),
+  );
 
   Future<void> _showInvite(BuildContext context) async {
     final email = await showModalBottomSheet<String>(
@@ -187,10 +191,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
     if (email != null && context.mounted) {
       final s = context.s;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        duration: const Duration(seconds: 8),
-        content: Text(email.isEmpty ? s.inviteSuccess : '${s.inviteSuccess} ${s.emailLinkSent(email)}'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(duration: const Duration(seconds: 8), content: Text(email.isEmpty ? s.inviteSuccess : '${s.inviteSuccess} ${s.emailLinkSent(email)}')),
+      );
     }
   }
 }
@@ -227,9 +230,18 @@ class _InviteSheetState extends State<_InviteSheet> {
             children: [
               Text(s.inviteRedeem, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: DSpacing.l),
-              TextFormField(controller: _code, decoration: InputDecoration(labelText: s.inviteCode), validator: (v) => (v ?? '').trim().length < 10 ? s.fieldRequired : null),
+              TextFormField(
+                controller: _code,
+                decoration: InputDecoration(labelText: s.inviteCode),
+                validator: (v) => (v ?? '').trim().length < 10 ? s.fieldRequired : null,
+              ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _user, decoration: InputDecoration(labelText: s.username), autocorrect: false, validator: (v) => (v ?? '').trim().length < 3 ? s.usernameRules : null),
+              TextFormField(
+                controller: _user,
+                decoration: InputDecoration(labelText: s.username),
+                autocorrect: false,
+                validator: (v) => (v ?? '').trim().length < 3 ? s.usernameRules : null,
+              ),
               const SizedBox(height: DSpacing.m),
               TextFormField(
                 controller: _display,
@@ -245,10 +257,24 @@ class _InviteSheetState extends State<_InviteSheet> {
                 validator: (v) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch((v ?? '').trim()) ? null : s.emailInvalid,
               ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _pass, obscureText: true, decoration: InputDecoration(labelText: s.password), validator: (v) => (v ?? '').length < 10 ? s.passwordTooShort : null),
+              TextFormField(
+                controller: _pass,
+                obscureText: true,
+                decoration: InputDecoration(labelText: s.password),
+                validator: (v) => (v ?? '').length < 10 ? s.passwordTooShort : null,
+              ),
               const SizedBox(height: DSpacing.m),
-              TextFormField(controller: _pass2, obscureText: true, decoration: InputDecoration(labelText: s.passwordRepeat), validator: (v) => v != _pass.text ? s.passwordMismatch : null),
-              if (_error != null) Padding(padding: const EdgeInsets.only(top: DSpacing.m), child: Text(_error!, style: const TextStyle(color: DColors.danger))),
+              TextFormField(
+                controller: _pass2,
+                obscureText: true,
+                decoration: InputDecoration(labelText: s.passwordRepeat),
+                validator: (v) => v != _pass.text ? s.passwordMismatch : null,
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: DSpacing.m),
+                  child: Text(_error!, style: const TextStyle(color: DColors.danger)),
+                ),
               const SizedBox(height: DSpacing.l),
               FilledButton(
                 onPressed: _busy

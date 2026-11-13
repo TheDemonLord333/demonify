@@ -485,5 +485,16 @@
   "forgotSending": "Wird gesendet …",
   "forgotFallback": "Keine bestätigte E-Mail-Adresse oder kein Zugriff mehr darauf? Dann kann ein Administrator dein Passwort zurücksetzen.",
   "backToLogin": "Zurück zur Anmeldung",
-  "inviteEmailHelp": "Du erhältst einen Link zur Bestätigung."
+  "inviteEmailHelp": "Du erhältst einen Link zur Bestätigung.",
+  "libraryAlbums": "Alben",
+  "libraryCatalog": "Gesamter Katalog",
+  "libraryClearFilter": "Filter aufheben",
+  "libraryEmptyAll": "Deine Bibliothek ist noch leer",
+  "libraryEmptyAllHint": "Erstelle Playlists, speichere Alben oder folge Künstlern – alles erscheint hier gemeinsam.",
+  "libraryEmptyPlaylists": "Noch keine eigenen Playlists",
+  "libraryEmptyAlbums": "Noch keine Alben gespeichert",
+  "libraryEmptyAlbumsHint": "Tippe auf einer Album-Seite auf „Speichern“, um es hier zu sehen.",
+  "libraryEmptyArtists": "Du folgst noch keinen Künstlern",
+  "libraryEmptyArtistsHint": "Tippe auf einer Künstlerseite auf „Folgen“.",
+  "artist": "Künstler"
 }
